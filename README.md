@@ -1,13 +1,39 @@
-# SLP (Shiny Light Picker)
-Development of a fast plate solver utilising geometric hashing and K-D Tree matching. This code is Python and designed for use on a CPU. 
+# Shiny Light Picker (SLP)
 
-The aim of the platesolver to rapidly produce a verified World Coordinate System (WCS) object for a query astronomical image.
+This project provides a set of tools to perform plate solving in astronomy, tuned for a particular optic and prioritizing speed. The project is divided into several modules, each responsible for different aspects of the process.
 
-The system is designed with navigation in mind and not as a general purpose plate solver such as astrometry.net
+## Modules
 
-Solver steps:
-1. Produce a catalogue. This is stored as a KD-Tree of hashcodes, a list of quads (4x star index) and a database of each catalogue star properties.
-2. Take query image and process it into the same format as the catalogue i.e. Index, Tree, Quad List
-3. Use a K-D Tree search to find the closest matching hashcodes from the query image and the catalogue. Produce hypothesis in the form of a WCS object.
-4. Verfiy hypothesis by checking if nearby catalogue stars are represented in the image
-5. Output the verfied WCS object
+### cat.py
+(Description of the functionality provided by this module.)
+
+### sol.py
+(Description of the functionality provided by this module.)
+
+### img.py
+(Description of the functionality provided by this module.)
+
+### utils.py
+Contains utility functions for astrometric calculations, including finding the two furthest points in a set of coordinates, generating unique hash codes for quads, rotating coordinates, and finding centroids.
+
+## Installation
+Make sure you have Python installed on your machine. You can clone the repository and include all the .py files in your project. Provide any specific installation instructions or dependencies here.
+
+## Usage
+Provide examples of how to use each module, or refer to individual module documentation if available.
+
+### Example for cat.py
+```python
+# Usage example for cat.py
+```
+
+### Example for img.py
+```python
+# Usage example for img.py
+np.sum(a1,b1)
+```
+
+### Example for sol.py
+```python
+# Usage example for sol.py
+```
