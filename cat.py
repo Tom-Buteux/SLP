@@ -185,5 +185,5 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
 
 # running code
 
-cat2codes([9,14],[9,14],10)
+cat2codes([0,360],[-90,90],10)
 
