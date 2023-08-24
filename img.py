@@ -61,6 +61,8 @@ def img2codes(file):
 
     """ processing steps """
 
+    
+
    # converting image into an 8-bit unsigned integer with values between 0 and 255
     image = image.astype(np.uint8)
     image = 255-image
@@ -68,17 +70,19 @@ def img2codes(file):
         # convert to greyscale not using cv2
         image = image[0,:,:]
     # apply a gaussian blur to the image
-    image = cv2.GaussianBlur(image, (11, 11), 0)
+    #image = cv2.GaussianBlur(image, (11, 11), 0)
     # creating a median smoothed image
     image_median = cv2.medianBlur(image, 31)
     # subtracting the median smoothed image from the original image
     image = cv2.subtract(image_median, image)
     image = 255-image
 
-    """ insert variance thresholding here 
-    
-    
-    """
+    """ insert variance thresholding here """
+    std = np.std(image)
+    std8 = std*8
+    # thresholding the image so that any values above 8*std are set to 255
+    image[image > std8] = 255
+    # show the image
 
     """ setting up detector """
     image_size = min([image_height, image_width])
@@ -86,7 +90,7 @@ def img2codes(file):
     params = cv2.SimpleBlobDetector_Params()
     # Filter by Area.
     params.filterByArea = True
-    params.minArea = 80
+    params.minArea = 20
     # Filter by Circularity
     params.filterByCircularity = False
     params.minCircularity = 0.5
@@ -105,7 +109,7 @@ def img2codes(file):
     corners = [[keypoint.pt[0], keypoint.pt[1]] for keypoint in keypoints]
     sizes = [keypoint.size for keypoint in keypoints]
 
-    coords = sorted(zip(sizes, corners), reverse=True)[:50]
+    coords = sorted(zip(sizes, corners), reverse=True)[:70]
     sizes, corners = map(list, zip(*coords))
 
     # creating img_data dataframe containing all stars in image cols = ['x', 'y', 'size']
@@ -114,26 +118,40 @@ def img2codes(file):
     img_data = img_data.sort_values(by=['size'], ascending=False)
     img_data['count'] = 0
 
+    # plot the image with the corners
+    plt.figure(figsize=(16,16))
+    plt.imshow(image, cmap='gray')
+    plt.plot(img_data['x'],img_data['y'],'go',fillstyle='none')
+    plt.show()
+
 
     # creating img_quads list of quads in image, in data.index format
-    tree = cKDTree(img_data[['x', 'y']].values)
+    
     img_quads = []
     img_codes = []
-    run_img_pass(img_data, image_size, tree, 10, img_quads, img_codes)
+     #reset the data index
+    img_data = img_data.reset_index(drop=True)
+    tree = cKDTree(img_data[['x', 'y']].values)
 
-    return img_data, img_quads, img_codes, np.shape(image)
+    run_img_pass(img_data, image_size, tree, 7, img_quads, img_codes, image)
+
+    return img_data, img_quads, img_codes, np.shape(image) # shape required for finding centre of image in sol.py
 
 
 
-def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes):
+def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes, image):
     # itterating through the corners to create quads
     for star in img_data.index.to_list():
         if img_data.loc[star, 'count'] >= cnt:
             continue
         # find the neighbouring stars within 0.35*image_size
         neighbours = tree.query_ball_point(img_data.loc[star, ['x', 'y']].values, 0.35*image_size)
-        # remove the star itself from the neighbours
-        neighbours.remove(star)
+        try:
+            # remove the star itself from the neighbours
+            neighbours.remove(star)
+        except:
+            print('star {} not in neighbours' .format(star))
+            continue
         # itterate through the neighbours to create quads
         for combination in combinations(neighbours, 3):
             quad = [star,*combination]
@@ -160,21 +178,3 @@ def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes):
 
             # add 1 to the count of each star in the quad
             img_data.loc[list(quad), 'count'] += 1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
