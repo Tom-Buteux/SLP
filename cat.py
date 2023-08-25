@@ -14,6 +14,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 import itertools
 import pickle as pkl
+import matplotlib.pyplot as plt
 
 import utils as utils
 
@@ -75,7 +76,7 @@ def cat2codes(RA_lims, DE_lims, N):
 
     # reset index
     cat_data = cat_data.reset_index(drop=True)
-
+    
     
     # create quads and hashcodes lists
     quads = []
@@ -97,6 +98,29 @@ def cat2codes(RA_lims, DE_lims, N):
     for i in range(10):
         run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes)
         print(' Number of quads: ', len(quads))
+    
+    print('ignoring saves when testing\nre-enable saves in cat.py when changes are complete')
+    print(cat_data)
+    # plotting the stars
+    fig = plt.figure(figsize=(10,10))
+    plt.scatter(cat_data['RA'], cat_data['DE'], s=30000/(10**(cat_data['VTmag']/2.5))*2,color='black')
+    # plot the star with index =4
+    ind = 0
+    plt.plot(cat_data['RA'][ind], cat_data['DE'][ind], 'r+', fillstyle='none')
+    # draw a 0.35 degree circle around the star index ind
+    circle = plt.Circle((cat_data['RA'][ind], cat_data['DE'][ind]), 0.35, color='r', fill=False)
+    ax = plt.gca()
+    ax.add_artist(circle)
+    # draw a blue circle r=0.25 degrees
+    circle = plt.Circle((cat_data['RA'][ind], cat_data['DE'][ind]), 0.25, color='b', fill=False)
+    ax.add_artist(circle)
+    # draw a green circle r=0.15 degrees
+    circle = plt.Circle((cat_data['RA'][ind], cat_data['DE'][ind]), 0.15, color='g', fill=False)
+    ax.add_artist(circle)
+
+
+    plt.show()
+
 
     # save quads and hashcodes as lists
     np.save('quads.npy', quads)
@@ -106,6 +130,7 @@ def cat2codes(RA_lims, DE_lims, N):
     with open('cat_data.pkl', 'wb') as f:
         pkl.dump(cat_data, f)
 
+
     
 
 
@@ -114,6 +139,7 @@ def cat2codes(RA_lims, DE_lims, N):
     
 def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
     # creating quads and hashcodes
+    N = 7
     for healpix in cat_data['healpix'].unique():
         #ending the loop if there are 100 quads
 
@@ -126,6 +152,10 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
         for star in stars:
             if found == True:
                 break
+
+            # if star has a 'count' greater then or equal to N, continue
+            if cat_data.loc[star, 'count'] >= N:
+                continue
             # find all stars within Dmax of star
             neighbours = tree.query_ball_point(cat_data.loc[star, ['x', 'y', 'z']], Dmax)
             # drop star from neighbours
@@ -139,6 +169,10 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
             for combination in itertools.combinations(neighbours, 3):
                 # create a quad from the combination
                 quad = [star, combination[0], combination[1], combination[2]]
+
+                # check if any of the stars in quad have a count greater than or equal to N
+                if (cat_data.loc[quad, 'count'] >= N).any():
+                    continue
 
                 # make quad into a sorted tuple
                 quad = tuple(sorted(quad))
@@ -171,6 +205,8 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
                 # create hashcode for quad
                 hashcode = tuple(utils.hashcode(cat_data.loc[quad, ['RA', 'DE']].values))
                 hashcodes.append(hashcode)
+                # increment count for each star in quad
+                cat_data.loc[list(quad), 'count'] += 1
                 found = True
                 break
 
@@ -185,6 +221,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
 
 
 # running code
-cat2codes([9,14],[9,14],10)
+cat2codes([12,14],[12,14],10)
 #cat2codes([35,60],[50,60],10)
 
