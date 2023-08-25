@@ -70,13 +70,12 @@ def img2codes(file):
         # convert to greyscale not using cv2
         image = image[0,:,:]
     initial_image = image
-    # apply a gaussian blur to the image
-    #image = cv2.GaussianBlur(image, (11, 11), 0)
     # creating a median smoothed image
-    image_median = cv2.medianBlur(image, 31)
+    image_median = cv2.medianBlur(image, 101)
     # subtracting the median smoothed image from the original image
     image = cv2.subtract(image_median, image)
     image = 255-image
+    median_subtracted = image
 
     """ insert variance thresholding here """
     std = np.std(image)
@@ -84,6 +83,20 @@ def img2codes(file):
     # thresholding the image so that any values above 8*std are set to 255
     image[image > std8] = 255
     # show the image
+    # apply a gaussian blur to the image
+    image = cv2.GaussianBlur(image, (5, 5), 0)
+
+    fig, ax = plt.subplots(2, 2, figsize=(15, 5))
+    ax[0][0].imshow(initial_image, cmap='gray')
+    ax[0][0].set_title('Initial Image')
+    ax[0][1].imshow(median_subtracted, cmap='gray')
+    ax[0][1].set_title('Median Subtracted Image')
+    ax[1][0].imshow(image, cmap='gray')
+    ax[1][0].set_title('Thresholded Image')
+    ax[1][1].imshow(image_median, cmap='gray')
+    ax[1][1].set_title('Median Image')
+    plt.show()
+
 
     """ setting up detector """
     image_size = min([image_height, image_width])
@@ -110,7 +123,7 @@ def img2codes(file):
     corners = [[keypoint.pt[0], keypoint.pt[1]] for keypoint in keypoints]
     sizes = [keypoint.size for keypoint in keypoints]
 
-    coords = sorted(zip(sizes, corners), reverse=True)[:40]
+    coords = sorted(zip(sizes, corners), reverse=True)[:30]
     sizes, corners = map(list, zip(*coords))
 
     # creating img_data dataframe containing all stars in image cols = ['x', 'y', 'size']

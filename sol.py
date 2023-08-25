@@ -155,6 +155,8 @@ ax[1].invert_xaxis()
 # axis labels
 ax[1].set_xlabel('RA')
 ax[1].set_ylabel('DE')
+# grid
+ax[1].grid(True)
 
 # plot the intitial image in the middle panel
 ax[2].imshow(initial_image, cmap='gray')

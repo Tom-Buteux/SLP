@@ -116,8 +116,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
     # creating quads and hashcodes
     for healpix in cat_data['healpix'].unique():
         #ending the loop if there are 100 quads
-        if len(quads)==100:
-            break
 
         print('healpix: ', healpix)
         found = False
@@ -170,9 +168,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
 
                 # add quad to quads
                 quads.append(quad)
-                if len(quads) == 100:
-                    break
-
                 # create hashcode for quad
                 hashcode = tuple(utils.hashcode(cat_data.loc[quad, ['RA', 'DE']].values))
                 hashcodes.append(hashcode)
@@ -190,6 +185,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
 
 
 # running code
-
 cat2codes([9,14],[9,14],10)
+#cat2codes([35,60],[50,60],10)
 
