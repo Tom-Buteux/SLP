@@ -69,6 +69,7 @@ def img2codes(file):
     if len(np.shape(image)) == 3:
         # convert to greyscale not using cv2
         image = image[0,:,:]
+    initial_image = image
     # apply a gaussian blur to the image
     #image = cv2.GaussianBlur(image, (11, 11), 0)
     # creating a median smoothed image
@@ -109,7 +110,7 @@ def img2codes(file):
     corners = [[keypoint.pt[0], keypoint.pt[1]] for keypoint in keypoints]
     sizes = [keypoint.size for keypoint in keypoints]
 
-    coords = sorted(zip(sizes, corners), reverse=True)[:70]
+    coords = sorted(zip(sizes, corners), reverse=True)[:40]
     sizes, corners = map(list, zip(*coords))
 
     # creating img_data dataframe containing all stars in image cols = ['x', 'y', 'size']
@@ -118,11 +119,6 @@ def img2codes(file):
     img_data = img_data.sort_values(by=['size'], ascending=False)
     img_data['count'] = 0
 
-    # plot the image with the corners
-    plt.figure(figsize=(16,16))
-    plt.imshow(image, cmap='gray')
-    plt.plot(img_data['x'],img_data['y'],'go',fillstyle='none')
-    plt.show()
 
 
     # creating img_quads list of quads in image, in data.index format
@@ -135,7 +131,7 @@ def img2codes(file):
 
     run_img_pass(img_data, image_size, tree, 7, img_quads, img_codes, image)
 
-    return img_data, img_quads, img_codes, np.shape(image) # shape required for finding centre of image in sol.py
+    return img_data, img_quads, img_codes, np.shape(image), image, target, initial_image # shape required for finding centre of image in sol.py
 
 
 
