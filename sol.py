@@ -32,7 +32,7 @@ print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
 file = 'test_sets/60arcmin2.fits'
-img_data, img_quads, img_codes, img_shape = img.img2codes(file)
+img_data, img_quads, img_codes, img_shape, image, target, initial_image = img.img2codes(file)
 print('image processed successfully')
 print(len(img_quads), 'image quads')
 
@@ -135,4 +135,36 @@ if len(wcs_list) == 0:
 else:
     print('Solution found')
     print('Number of solutions: ', len(wcs_list))
+
+# plotting the image in left panel
+fig, ax = plt.subplots(1,3,figsize=(30,10))
+ax[0].imshow(image, cmap='gray')
+ax[0].plot(img_data['x'], img_data['y'], 'go', fillstyle='none')
+# axis labels
+ax[0].set_xlabel('x')
+ax[0].set_ylabel('y')
+
+# on the right panel, plot the catalogue stars in green
+plot_data = cat_data[(cat_data['RA'] > target[0] - 0.5) & (cat_data['RA'] < target[0] + 0.5) & (cat_data['DE'] > target[1] - 0.5) & (cat_data['DE'] < target[1] + 0.5)]
+ax[1].scatter(plot_data['RA'], plot_data['DE'],s=30000/(10**(plot_data['VTmag']/2.5))*2)
+# limit the axes to the target
+ax[1].set_xlim(target[0] - 0.5, target[0] + 0.5)
+ax[1].set_ylim(target[1] - 0.5, target[1] + 0.5)
+# invert the x-axis in the right panel
+ax[1].invert_xaxis()
+# axis labels
+ax[1].set_xlabel('RA')
+ax[1].set_ylabel('DE')
+# grid
+ax[1].grid(True)
+
+# plot the intitial image in the middle panel
+ax[2].imshow(initial_image, cmap='gray')
+ax[2].plot(img_data['x'], img_data['y'], 'go', fillstyle='none')
+
+plt.tight_layout()
+
+
+plt.show()
+
 
