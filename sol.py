@@ -31,7 +31,7 @@ print('catalogue data loaded successfully')
 print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin2.fits'
+file = 'test_sets/60arcmin1.fits'
 img_data, img_quads, img_codes, img_shape, image, target, initial_image = img.img2codes(file)
 print('image processed successfully')
 print(len(img_quads), 'image quads')
