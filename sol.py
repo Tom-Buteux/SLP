@@ -15,12 +15,13 @@ import cv2
 import pandas as pd
 from scipy.spatial import cKDTree
 from itertools import combinations
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
+import matplotlib.pyplot as plt
+
 import img
 import utils
-
-"""------------------"""
-
-import matplotlib.pyplot as plt
+import plots
 
 print('------------------')
 # loading in cat_data, cat_quads, cat_codes
@@ -42,8 +43,10 @@ img_tree = cKDTree(img_data[['x','y']].values)
 cat_tree_cartesian = cKDTree(cat_data[['x','y','z']].values)
 
 # find the closest N matching hashcodes in the catalogue for each hashcode in the image
-N = 3
+N = 2
 distances, indices = cat_tree.query(img_codes, k=N)
+print('distances: ', distances)
+print('indices: ', indices)
 # convert to arrays
 distances = np.array(distances)
 indices = np.array(indices)
@@ -64,8 +67,13 @@ wcs_list = []
 for i in range(len(matching_img_quads)):
     img_coords = img_data.loc[list(matching_img_quads[i]),['x','y']].values
     cat_coords = cat_data.loc[list(matching_cat_quads[i]),['RA','DE']].values
-    img_A, img_B, _ = utils.findAB(img_coords)
-    cat_A, cat_B, _ = utils.findAB(cat_coords)
+    img_sort, _, _ = utils.sortABCD(img_coords)
+    cat_sort, _, _ = utils.sortABCD(cat_coords)
+    img_A = img_sort[0]
+    img_B = img_sort[1]
+    cat_A = cat_sort[0]
+    cat_B = cat_sort[1]
+
 
    # create a WCS object
     w = WCS(naxis=2)
@@ -136,6 +144,9 @@ else:
     print('Solution found')
     print('Number of solutions: ', len(wcs_list))
 
+# create a list of polygons for each matched quad
+
+
 # plotting the image in left panel
 fig, ax = plt.subplots(1,3,figsize=(30,10))
 ax[0].imshow(image, cmap='gray')
@@ -143,6 +154,27 @@ ax[0].plot(img_data['x'], img_data['y'], 'go', fillstyle='none')
 # axis labels
 ax[0].set_xlabel('x')
 ax[0].set_ylabel('y')
+# trun the list of tuples in matching_img_quads into a list of lists
+
+# Create the color map
+num_quads = np.max([len(matching_img_quads), len(matching_cat_quads)])
+
+colours = plt.cm.jet(np.linspace(0, 1, num_quads))
+
+img_poly_list = [list(quad) for quad in matching_img_quads]
+cat_poly_list = [list(quad) for quad in matching_cat_quads]
+
+# for each quad in the list, create a polygon object and add it to the plot
+# for each quad in the list, create a polygon object and add it to the plot
+for i, quad in enumerate(matching_img_quads):
+    ax[0].add_patch(Polygon(xy=plots.order_points(img_data.loc[quad, ['x', 'y']]), closed=True, fill=False, color=colours[i], alpha=1))
+
+for i, quad in enumerate(matching_cat_quads):
+    ax[1].add_patch(Polygon(xy=plots.order_points(cat_data.loc[quad, ['RA', 'DE']]), closed=True, fill=False, color=colours[i], alpha=1))
+
+
+
+
 
 # on the right panel, plot the catalogue stars in green
 plot_data = cat_data[(cat_data['RA'] > target[0] - 0.5) & (cat_data['RA'] < target[0] + 0.5) & (cat_data['DE'] > target[1] - 0.5) & (cat_data['DE'] < target[1] + 0.5)]
@@ -161,6 +193,10 @@ ax[1].grid(True)
 # plot the intitial image in the middle panel
 ax[2].imshow(initial_image, cmap='gray')
 ax[2].plot(img_data['x'], img_data['y'], 'go', fillstyle='none')
+
+
+
+
 
 plt.tight_layout()
 
