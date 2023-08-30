@@ -1,5 +1,25 @@
 import numpy as np
 
+def findABCD(coordinates):
+    points = np.array(coordinates)
+    num_points = len(points)
+    distances = np.zeros((num_points, num_points))
+
+    for i in range(num_points):
+        for j in range(i+1, num_points):
+            dist = np.linalg.norm(points[i] - points[j])
+            distances[i, j] = dist
+
+    i, j = np.unravel_index(np.argmax(distances, axis=None), distances.shape)
+    A = points[i]
+    B = points[j]
+    other_indices = [idx for idx in range(num_points) if idx not in [i, j]]
+    C = points[other_indices[0]]
+    D = points[other_indices[1]]
+
+    return A, B, C, D, np.max(distances)
+
+
 
 
 def sortABCD(coordinates):

@@ -178,16 +178,16 @@ def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes, quad_sca
                 continue # if it is, skip to the next combination
 
             # check the scale of the quad
-            _,scaled,scale = utils.sortABCD(img_data.loc[quad, ['x', 'y']].values)
+            A, B, C, D, scale = utils.findABCD(img_data.loc[quad, ['x', 'y']].values)
             # if the scale is not between 0.25 and 0.35, skip to the next combination
             if (scale < quad_scale-0.1 * image_size) or (scale > quad_scale * image_size):
                 continue
 
-            # check that C and D lie in a circle diamter AB centred at midpoint AB
-            midpoint = [0.5, 0.5]
-            C = scaled[2]
-            D = scaled[3]
-            if (np.linalg.norm(np.subtract(C,midpoint)) > 0.5) or (np.linalg.norm(np.subtract(D,midpoint)) > 0.5):
+            # find the midpoint of AB
+            midpoint = np.mean([A, B], axis=0)
+            # check if C and D are within 0.5*AB of the midpoint
+            distance = np.linalg.norm(np.subtract(midpoint,A))
+            if (np.linalg.norm(np.subtract(C,midpoint)) > distance) or (np.linalg.norm(np.subtract(D,midpoint)) > distance):
                 continue
 
 
