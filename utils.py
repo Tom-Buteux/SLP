@@ -1,27 +1,100 @@
 import numpy as np
 
+def findABCD(coordinates):
+    points = np.array(coordinates)
+    num_points = len(points)
+    distances = np.zeros((num_points, num_points))
+
+    for i in range(num_points):
+        for j in range(i+1, num_points):
+            dist = np.linalg.norm(points[i] - points[j])
+            distances[i, j] = dist
+
+    i, j = np.unravel_index(np.argmax(distances, axis=None), distances.shape)
+    A = points[i]
+    B = points[j]
+    other_indices = [idx for idx in range(num_points) if idx not in [i, j]]
+    C = points[other_indices[0]]
+    D = points[other_indices[1]]
+
+    return A, B, C, D, np.max(distances)
 
 
-def findAB(coordinates):
-    coordinates = np.array(coordinates)
-    # Compute the pairwise distances using NumPy's broadcasting
-    diffs = coordinates[:, None, :] - coordinates[None, :, :]
-    distances = np.linalg.norm(diffs, axis=-1)
 
-    # Mask the diagonal (distance of point from itself) to avoid selecting it
-    np.fill_diagonal(distances, 0)
 
-    # Find the indices of the maximum distance
-    i, j = np.unravel_index(distances.argmax(), distances.shape)
+def sortABCD(coordinates):
+    points = np.array(coordinates)
+    num_points = len(points)
+    distances = np.zeros((num_points, num_points))
 
-    point_A = coordinates[i]
-    point_B = coordinates[j]
+    for i in range(num_points):
+        for j in range(i+1, num_points):
+            dist = np.linalg.norm(points[i] - points[j])
+            distances[i, j] = dist
 
-    # A should always be the point that the other points are closest to [MAY NEED TO CHANGE FOR JUST X-AXIS]
-    if distances[i].sum() > distances[j].sum():
-        point_A, point_B = point_B, point_A
 
-    return point_A, point_B, distances.max()
+    i, j = np.unravel_index(np.argmax(distances, axis=None), distances.shape)
+    A = points[i]
+    B = points[j]
+
+    other_indices = [idx for idx in range(num_points) if idx not in [i, j]]
+    C = points[other_indices[0]]
+    D = points[other_indices[1]]
+
+    original_points = [A,B,C,D]
+
+
+    # Translate all points so A moves to (0, 0)
+    translated_points = [A,B,C,D] - A
+
+    # if a is at position translated_points[1], swap a and b
+    if np.linalg.norm(translated_points[1]) < np.linalg.norm(translated_points[0]):
+        translated_points[[0, 1]] = translated_points[[1, 0]]
+
+    # Calculate theta_B
+    theta_B = np.arctan2(translated_points[1][1], translated_points[1][0])
+
+    # Calculate the angle to rotate B onto the line x = y
+    theta = np.pi/4 - theta_B
+
+    # Create the rotation matrix
+    R = np.array([[np.cos(theta), -np.sin(theta)],
+                [np.sin(theta), np.cos(theta)]])
+
+
+    # Rotate all points
+    rotated_points = np.dot(R, translated_points.T).T
+
+    # Scale all points so B is at (1, 1)
+    scaled_points = rotated_points / rotated_points[1]
+
+    # if Cx + Dx > 1, subtract all x-coordinates from 1
+    if scaled_points[2][0] + scaled_points[3][0] > 1:
+        scaled_points = np.subtract(1,scaled_points)
+
+    if np.linalg.norm(scaled_points[1]) < np.linalg.norm(scaled_points[0]):
+        scaled_points[[0, 1]] = scaled_points[[1, 0]]
+
+    # ensure that Cx < Dx
+    if scaled_points[2][0] > scaled_points[3][0]:
+        scaled_points[[2, 3]] = scaled_points[[3, 2]]
+
+    
+    return original_points, scaled_points, np.max(distances)
+
+
+def findScale(points):
+    num_points = len(points)
+    max_distance = 0.0  # Initialize max_distance to zero
+    
+    for i in range(num_points):
+        for j in range(i+1, num_points):
+            distance = np.linalg.norm(points[i] - points[j])
+            if distance > max_distance:
+                max_distance = distance
+                
+    return max_distance
+
 
 
 
@@ -53,76 +126,11 @@ def hashcode(quad):
     # convert the quad to a NumPy array
     quad = np.array(quad)
 
-    # compute the pairwise distances using broadcasting
-    diff = quad[:, np.newaxis, :] - quad[np.newaxis, :, :]
-    dist = np.sqrt((diff ** 2).sum(axis=-1))
-
-    # find the indices of the two points that are furthest apart
-    max_dist = np.max(dist)
-    idx = np.argwhere(dist == max_dist)
-    i, j = idx[0]
-    A = quad[i]
-    B = quad[j]
-
-    # find C and D based on distance from A
-    CD = quad[np.logical_not(np.logical_or(quad == A, quad == B))].reshape(2,-1)
-    dist_from_A = np.linalg.norm(CD - A[np.newaxis, :], axis=1)
-    C, D = CD[np.argsort(dist_from_A)]
-    array = [A,B,C,D]
-
-    # setting array[0] to (0,0) and scaling the rest of the coords to match    
-    i = 0
-    zero_point = array[0]
-    for point in array:
-        array[i] = np.subtract(array[i],zero_point)
-        i +=1
+    _,points,_ = sortABCD(quad)
         
-    # rotating quad so that the line  quad[0] --> quad[2] is x=y line 
-    # Defining the 'up' coordinate frame
-    y_axis = (0, 1)
-    # Finding the angle (alpha) between quad[0] and (1,1)
-    # A.B = |A||B| cos(alpha)
-    alpha = np.absolute(np.arccos(np.dot(y_axis, array[1]) / (np.linalg.norm(y_axis) * np.linalg.norm(array[1]))))  # I think arc cos returns the positive value but abs() to make sure
-   
-    # Ensuring that the quad is rotated so that AB is inline with y=x on the image axis
-    if array[1][0] >= 0:
-      angle = alpha - np.deg2rad(45)
-    else:
-         angle = -(alpha + np.deg2rad(45))
 
-         
-    for i in range(0,4):
-           array[i] = list(RotateCoordinates(x=array[i][0], y=array[i][1], angle=angle))
- 
-   
-    #  scaling quad so array[1] = [1,1]
-    x_scale = array[1][0]
-    y_scale = array[1][1]
-
-    #  scaling quad so array[1] = [1,1]
-    for i in range(4):
-        array[i][0] = array[i][0]/x_scale
-        array[i][1] = array[i][1]/y_scale
-        
- 
-    #  creating hashcode 
-    #  if Xc + Xd > 1: 1 - each point
-    #  if Xc > Xd: swap C and D
-    if array[2][0] + array[3][0] > 1:
-        array = np.subtract(1,array)
     
-    if array[2][0] > array[3][0]:
-        hashcode = [array[3],array[2]]
-    else:
-        hashcode = [array[2],array[3]]
-        
-    
-    # flatten hashcode
-    def flatten(l):
-        return [item for sublist in l for item in sublist]
-    
-    
-    hashcode = flatten(hashcode)
+    hashcode = [points[2][0],points[2][1],points[3][0],points[3][1]]
 
     return hashcode[0],hashcode[1],hashcode[2],hashcode[3]
 
@@ -165,3 +173,4 @@ def centroid(vertices):
     # Compute the centroid
     centroid_coords = vertices.mean(axis=0)
     return tuple(centroid_coords)
+

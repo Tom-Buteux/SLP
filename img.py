@@ -85,6 +85,7 @@ def img2codes(file):
     # show the image
     # apply a gaussian blur to the image
     image = cv2.GaussianBlur(image, (5, 5), 0)
+    """
 
     fig, ax = plt.subplots(2, 2, figsize=(15, 5))
     ax[0][0].imshow(initial_image, cmap='gray')
@@ -96,6 +97,7 @@ def img2codes(file):
     ax[1][1].imshow(image_median, cmap='gray')
     ax[1][1].set_title('Median Image')
     plt.show()
+    """
 
 
     """ setting up detector """
@@ -142,13 +144,14 @@ def img2codes(file):
     img_data = img_data.reset_index(drop=True)
     tree = cKDTree(img_data[['x', 'y']].values)
 
-    run_img_pass(img_data, image_size, tree, 7, img_quads, img_codes, image)
+    run_img_pass(img_data, image_size, tree, 7, img_quads, img_codes, quad_scale=0.35)
+
 
     return img_data, img_quads, img_codes, np.shape(image), image, target, initial_image # shape required for finding centre of image in sol.py
 
 
 
-def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes, image):
+def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes, quad_scale):
     # itterating through the corners to create quads
     for star in img_data.index.to_list():
         if img_data.loc[star, 'count'] >= cnt:
@@ -175,10 +178,18 @@ def run_img_pass(img_data, image_size, tree, cnt, img_quads, img_codes, image):
                 continue # if it is, skip to the next combination
 
             # check the scale of the quad
-            _,_,scale = utils.findAB(img_data.loc[quad, ['x', 'y']].values)
+            A, B, C, D, scale = utils.findABCD(img_data.loc[quad, ['x', 'y']].values)
             # if the scale is not between 0.25 and 0.35, skip to the next combination
-            if (scale < 0.25 * image_size) or (scale > 0.35 * image_size):
+            if (scale < quad_scale-0.1 * image_size) or (scale > quad_scale * image_size):
                 continue
+
+            # find the midpoint of AB
+            midpoint = np.mean([A, B], axis=0)
+            # check if C and D are within 0.5*AB of the midpoint
+            distance = np.linalg.norm(np.subtract(midpoint,A))
+            if (np.linalg.norm(np.subtract(C,midpoint)) > distance) or (np.linalg.norm(np.subtract(D,midpoint)) > distance):
+                continue
+
 
             # add the quad to the list
             img_quads.append(quad)

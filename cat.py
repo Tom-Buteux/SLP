@@ -96,8 +96,10 @@ def cat2codes(RA_lims, DE_lims, N):
 
     # run the pass three times
     for i in range(10):
-        run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes)
+        run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7)
         print(' Number of quads: ', len(quads))
+
+
     
     print('ignoring saves when testing\nre-enable saves in cat.py when changes are complete')
     print(cat_data)
@@ -137,9 +139,8 @@ def cat2codes(RA_lims, DE_lims, N):
 
 
     
-def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
+def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
     # creating quads and hashcodes
-    N = 7
     for healpix in cat_data['healpix'].unique():
         #ending the loop if there are 100 quads
 
@@ -185,10 +186,17 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
 
                 inp = cat_data.loc[quad, ['x', 'y', 'z']].values
 
-                _,_,scale = utils.findAB(inp)
+                A,B,C,D,scale = utils.findABCD(inp)
+                
 
                 if (scale < Dmin) or (scale > Dmax):
                     #print('scale not in range')
+                    continue
+                
+                midpoint = np.mean([A, B], axis=0)
+                # check if C and D are within 0.5*AB of the midpoint
+                distance = np.linalg.norm(np.subtract(midpoint,A))
+                if (np.linalg.norm(np.subtract(C,midpoint)) > distance) or (np.linalg.norm(np.subtract(D,midpoint)) > distance):
                     continue
 
                 # check which healpixel the centroid of the quad is in
@@ -221,6 +229,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes):
 
 
 # running code
-cat2codes([9,14],[9,14],10)
+cat2codes([9,13],[9,13],7)
 #cat2codes([35,60],[50,60],10)
 
