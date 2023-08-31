@@ -35,6 +35,9 @@ def cat2codes(RA_lims, DE_lims, N):
     cat_data = cat_data.copy()
 
     # create a list of healpix pixels for each coordinate in cat_data
+    """
+    Future work: Here i want to automate the healpix generation for different plate scale (FOV) 
+    """
     cat_data['healpix'] = healpy.ang2pix(128, cat_data['_RAJ2000'], cat_data['_DEJ2000'], nest=True, lonlat=True)
 
     # dropping the recno column
@@ -101,7 +104,7 @@ def cat2codes(RA_lims, DE_lims, N):
 
 
     
-    print('ignoring saves when testing\nre-enable saves in cat.py when changes are complete')
+    #print('ignoring saves when testing\nre-enable saves in cat.py when changes are complete')
     print(cat_data)
     # plotting the stars
     fig = plt.figure(figsize=(10,10))
@@ -229,6 +232,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
 
 # running code
-cat2codes([9,13],[9,13],7)
+cat2codes([75,77],[41,43],7)
 #cat2codes([35,60],[50,60],10)
 
