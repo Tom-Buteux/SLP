@@ -9,7 +9,4 @@ cat_data = pd.read_pickle('cat_data.pkl')
 quads = np.load('quads.npy', allow_pickle=True)
 hashcodes = np.load('hashcodes.npy', allow_pickle=True)
 
-print('Number of quads: ', len(quads))
-print('Number of hashcodes: ', len(hashcodes))
-
-print(cat_data)
+print(cat_data.tail())

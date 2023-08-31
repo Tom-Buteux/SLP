@@ -16,6 +16,8 @@ import pandas as pd
 from scipy.spatial import cKDTree
 from itertools import combinations
 import utils
+import plots
+from matplotlib.patches import Polygon
 
 
 # loading in the image
@@ -86,7 +88,7 @@ def imgSetUp(file):
     # apply a gaussian blur to the image
     image = cv2.GaussianBlur(image, (5, 5), 0)
     
-
+    """
     fig, ax = plt.subplots(2, 2, figsize=(15, 5))
     ax[0][0].imshow(initial_image, cmap='gray')
     ax[0][0].set_title('Initial Image')
@@ -97,6 +99,7 @@ def imgSetUp(file):
     ax[1][1].imshow(image_median, cmap='gray')
     ax[1][1].set_title('Median Image')
     plt.show()
+    """
     
 
 
@@ -106,7 +109,7 @@ def imgSetUp(file):
     params = cv2.SimpleBlobDetector_Params()
     # Filter by Area.
     params.filterByArea = True
-    params.minArea = 20
+    params.minArea = 10
     # Filter by Circularity
     params.filterByCircularity = False
     params.minCircularity = 0.5
@@ -135,12 +138,15 @@ def imgSetUp(file):
     img_data = img_data.sort_values(by=['size'], ascending=False)
     img_data['count'] = 0
     img_tree = cKDTree(img_data[['x', 'y']])
+    # resetting the index
+    img_data = img_data.reset_index(drop=True)
 
-    return img_data, image_size, img_tree, image
+    return img_data, image_size, img_tree, image, target
 
 
 # creating progressive function
-def generateQuads(N, img_data, image_size,img_quads, img_codes):
+def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
+    plot = False
     current_data = img_data.head(N).copy()
     star = N-1
     # find all neigbors of the star that are within 0.35 * image_size
@@ -149,19 +155,23 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes):
     # drop the star from the neighbors
     neighbors.remove(star)
     neighbors = sorted(neighbors)
+    colours = ['r', 'g', 'b', 'y', 'm', 'c']
 
     # check if there are at least 4 neighbors
     if len(neighbors) < 3:
         return img_quads, img_codes
+    i = 0
     for combination in combinations(neighbors,3):
+        
         quad = [star, *combination]
 
         # check if the quad is already in the list
         if tuple(sorted(quad)) in img_quads:
             continue
         # check if the scale of the quad is within 0.35 and 0.25 of the image size
+
         A,B,C,D,scale = utils.findABCD(current_data.loc[quad,['x','y']].values)
-        if (scale > 0.35*image_size) or (scale < 0.25*image_size):
+        if (scale > 0.35*image_size) or (scale < 0.15*image_size):
 
             continue
         # check if C and D lie in the within the A,B,MidAB circle
@@ -174,8 +184,39 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes):
         img_quads.append(tuple(sorted(quad)))
         img_codes.append(utils.hashcode(current_data.loc[quad,['x','y']].values))
     
-    print('image quads: ', len(img_quads))
+        """ create a plot of all the quads """
+        if plot == True:
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+            ax.imshow(image, cmap='gray')
+            #plot all points in current_data as an green circle with no fill
+            plt.plot(current_data['x'], current_data['y'], 'go', fillstyle='none', markersize=10)
+            # plot the last entry in current_data as a red circle with no fill
+            plt.plot(current_data.iloc[-1]['x'], current_data.iloc[-1]['y'], 'ro', fillstyle='none', markersize=10)
+            for quad in img_quads:
+                if i == len(colours)-1:
+                    i = -1
+                i = i+1
+                quad  = plots.order_points(current_data.loc[list(quad),['x','y']].values)
+                # create a Polygon patch
+                rect = Polygon(quad,linewidth=1,edgecolor=colours[i],facecolor='none')
+                # Add the patch to the Axes
+                ax.add_patch(rect)
+            plt.show(block=False)
+            plt.pause(1.5)
+            plt.close()
+
+
     return img_quads, img_codes
 
-
+"""
+img_data, image_size, img_tree, image = imgSetUp('test_sets/60arcmin9.fits')
+img_quads = []
+img_codes = []
+N_max = np.min([30, len(img_data)])
+w = []
+found = False
+for N in range(4,N_max):
+    img_quads, img_codes = generateQuads(N, img_data, image_size, img_quads, img_codes, image)
+    img_quads = []
+"""
 
