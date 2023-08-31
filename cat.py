@@ -20,6 +20,7 @@ import utils as utils
 
 def cat2codes(RA_lims, DE_lims, N):
     # loading in the data
+    """
     northern_data = fits.open('T2_northern.fit', ignore_missing_simple=True)
     southern_data = fits.open('T2_southern.fit', ignore_missing_simple=True)
 
@@ -29,10 +30,15 @@ def cat2codes(RA_lims, DE_lims, N):
 
     # concatenating dataframes
     cat_data = pd.concat([northern_df,southern_df],ignore_index=True)
+    """
+    cat_data = fits.open('asu-4.fit', ignore_missing_simple=True)
+    cat_data = pd.DataFrame(cat_data[1].data)
+    print(cat_data.columns)
 
     # resetting index
     cat_data = cat_data.reset_index(drop=True)
     cat_data = cat_data.copy()
+    cat_data = cat_data.rename(columns={'R1mag':'VTmag'})
 
     # create a list of healpix pixels for each coordinate in cat_data
     """
@@ -41,7 +47,7 @@ def cat2codes(RA_lims, DE_lims, N):
     cat_data['healpix'] = healpy.ang2pix(128, cat_data['_RAJ2000'], cat_data['_DEJ2000'], nest=True, lonlat=True)
 
     # dropping the recno column
-    cat_data = cat_data.drop('recno', axis=1)
+    #cat_data = cat_data.drop('recno', axis=1)
 
     cat_data = cat_data.copy()
     # filter data
@@ -50,10 +56,20 @@ def cat2codes(RA_lims, DE_lims, N):
     cat_data = cat_data[cat_data['_DEJ2000'] >= DE_lims[0]]
     cat_data = cat_data[cat_data['_DEJ2000'] <= DE_lims[1]]
     print('Length of filtered data: ', len(cat_data))
-
+    
     cat_data['count'] = 0
     healpix_count = pd.DataFrame({'healpix': cat_data['healpix'].unique()})
     healpix_count['count'] = 0
+
+
+
+    # converting any big-endian values to little-endian
+    for column in cat_data.columns:
+        if cat_data[column].dtype.byteorder == '>':  # big-endian
+            dtype_name = cat_data[column].dtype.name
+            little_endian_type = dtype_name.replace(">", "<")
+            cat_data[column] = cat_data[column].astype(little_endian_type)
+
 
     # for each healpix pixel, only keep the N brightest stars
     for healpix in cat_data['healpix'].unique():
@@ -64,16 +80,18 @@ def cat2codes(RA_lims, DE_lims, N):
         cat_data = pd.concat([cat_data, healpix_data], ignore_index=True)
 
     # convert each point to a cartesian coordinate on a unit sphere
-    cat_data['x'] = np.cos(np.radians(cat_data['_DEJ2000'])) * np.cos(np.radians(cat_data['_RAJ2000']))
-    cat_data['y'] = np.cos(np.radians(cat_data['_DEJ2000'])) * np.sin(np.radians(cat_data['_RAJ2000']))
-    cat_data['z'] = np.sin(np.radians(cat_data['_DEJ2000']))
-
+    
     # relabel columns to 'RA' and 'DE
     cat_data = cat_data.rename(columns={'_RAJ2000': 'RA', '_DEJ2000': 'DE'})
+    cat_data['x'] = np.cos(np.radians(cat_data['DE'])) * np.cos(np.radians(cat_data['RA']))
+    cat_data['y'] = np.cos(np.radians(cat_data['DE'])) * np.sin(np.radians(cat_data['RA']))
+    cat_data['z'] = np.sin(np.radians(cat_data['DE']))
 
+    
+    """
     # set any HIP numbers that are -2147483648 to NaN
     cat_data['HIP'] = cat_data['HIP'].replace(-2147483648, np.nan)
-
+    """
     # sort cat_data by healpix pixel
     cat_data = cat_data.sort_values(by=['healpix', 'VTmag'])
 
@@ -89,7 +107,7 @@ def cat2codes(RA_lims, DE_lims, N):
     tree = cKDTree(cat_data[['x', 'y', 'z']])
 
     # setting up Dmin and Dmax
-    Dmin = 2 * np.sin(np.radians(0.25)/2)
+    Dmin = 2 * np.sin(np.radians(0.05)/2)
     Dmax = 2 * np.sin(np.radians(0.35)/2)
 
     print ('Dmin: ', Dmin)
@@ -168,6 +186,9 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
             # ensure that there are at least 3 neighbours
             if len(neighbours) < 3:
                 continue
+
+            # sort neighbours by VTmag
+            neighbours = cat_data.loc[neighbours].sort_values(by=['VTmag']).index.tolist()
             
             # create a combination of 3 stars from neighbours
             for combination in itertools.combinations(neighbours, 3):
@@ -232,6 +253,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
 
 # running code
-cat2codes([75,77],[41,43],7)
-#cat2codes([35,60],[50,60],10)
+#cat2codes([70,90],[70,90],7)
+cat2codes([0,360],[0,90],10)
+#cat2codes([9,14],[9,14],5)
 

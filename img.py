@@ -141,7 +141,7 @@ def imgSetUp(file):
     # resetting the index
     img_data = img_data.reset_index(drop=True)
 
-    return img_data, image_size, img_tree, image, target
+    return img_data, image_size, img_tree, image, target, initial_image
 
 
 # creating progressive function
@@ -171,7 +171,7 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
         # check if the scale of the quad is within 0.35 and 0.25 of the image size
 
         A,B,C,D,scale = utils.findABCD(current_data.loc[quad,['x','y']].values)
-        if (scale > 0.35*image_size) or (scale < 0.15*image_size):
+        if (scale > 0.35*image_size) or (scale < 0.05*image_size):
 
             continue
         # check if C and D lie in the within the A,B,MidAB circle
