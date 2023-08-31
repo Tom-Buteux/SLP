@@ -18,7 +18,9 @@ from itertools import combinations
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
-
+from matplotlib import patches
+import matplotlib as mpl
+import time
 import img
 import utils
 import plots
@@ -38,12 +40,13 @@ print('catalogue data loaded successfully')
 print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin13.fits'
-img_data, image_size, img_tree, image, target  = img.imgSetUp(file)
+file = 'test_sets/red.fits'
+t1 = time.time()
+img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
 img_quads = []
 img_codes = []
 
-N_max = np.min([50,len(img_data)])
+N_max = np.min([70,len(img_data)])
 w = None
 found = False
 for N in range(4,N_max):
@@ -114,7 +117,7 @@ for N in range(4,N_max):
         # test the WCS object against the image
         # query the quad centre coordinates against the cat_tree_cartesian
         cat_centroid = utils.centroid(cat_data.loc[list(cat_quad),['x','y','z']].values)
-        ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(0.5)/2))
+        ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(2)/2))
         # convert the indices into a list of stars
         cat_test = cat_data.loc[list(cat_data.iloc[ind].index),['RA','DE']].values
 
@@ -123,15 +126,12 @@ for N in range(4,N_max):
         cat_pix = w.all_world2pix(cat_test,1)
 
         # query the cat_pix against the img_tree
-        ind2 = img_tree.query_ball_point(cat_pix, r = 8)
-
-
-
+        ind2 = img_tree.query_ball_point(cat_pix, r = 10)
 
         # find the number of non-empty lists
         non_empty = np.count_nonzero(ind2)
 
-        if non_empty >= 4:
+        if non_empty >= 10:
             # find the RA and DE of centre of the image
             width = np.shape(image)[0]
             height = np.shape(image)[1]
@@ -146,7 +146,7 @@ for N in range(4,N_max):
             roll_angle_deg = np.rad2deg(roll_angle_rad)
 
             # Adjust the angle to be in the range [0, 360]
-            roll_angle_deg = (roll_angle_deg + 360) % 360
+            roll_angle_deg = (roll_angle_deg + 180) % 360
             print(img_quad)
             print('centre: ', centre)
             print('roll (degrees E of N): ', roll_angle_deg)
@@ -163,12 +163,13 @@ for N in range(4,N_max):
 if w == None:
     print('no WCS found')
 
-
+t1 = time.time() - t1
+print('time taken: ', t1, ' seconds')
 #plotting the results
 # in left subplot, image with quads
 # in right subplot, catalogue with matching stars overlayed
 fig, ax = plt.subplots(1, 3, figsize=(24, 8))
-ax[0].imshow(image, cmap='gray')
+ax[0].imshow(initial_image, cmap='gray')
 ax[0].set_title('Image')
 ax[0].set_xlabel('x')
 ax[0].set_ylabel('y')
@@ -176,7 +177,8 @@ ax[0].set_ylabel('y')
 p, corners_img = plots.makePolygons(all_img_quads, img_data)
 # add p (patch collection) to the plot
 ax[0].add_collection(p)
-# plot the WCS
+# plot the image data as green circles with no fill
+ax[0].plot(img_data['x'][:N_max], img_data['y'][:N_max], 'ro', fillstyle='none')
 
 # plot the catalogue, trim the data to 0.5 eitherside of the target
 plot_data = cat_data[(cat_data['RA'] > target[0] - 0.5) & (cat_data['RA'] < target[0] + 0.5) & (cat_data['DE'] > target[1] - 0.5) & (cat_data['DE'] < target[1] + 0.5)]
@@ -195,19 +197,33 @@ ax[1].add_collection(q)
 # in 3rd subplot, plot all cat_data within 3 deg of target
 plot2_data = cat_data[(cat_data['RA'] > target[0] - 3) & (cat_data['RA'] < target[0] + 3) & (cat_data['DE'] > target[1] - 3) & (cat_data['DE'] < target[1] + 3)]
 ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTmag']/2.5))*2)
-ax[2].set_aspect('equal', 'box')
 ax[2].invert_xaxis()
 # plot the image superimposed on the catalogue in the correct WC
 # The extent should be in world coordinates. The corners of the image give the extent.
 if w != None:
-    lon, lat = w.all_pix2world([0, image.shape[1]], [0, image.shape[0]], 0)
-    extent = [lon[0], lon[1], lat[0], lat[1]]
+    # find the image corners in RA and DE
+    width = np.shape(image)[0]
+    height = np.shape(image)[1]
+    bot_left = w.all_pix2world(0, 0, 1)
+    top_left = w.all_pix2world(0, height, 1)
+    top_right = w.all_pix2world(width, height, 1)
+    bot_right = w.all_pix2world(width, 0,   1)
+    # create a closed polygon of the image corners
+    corners = np.array([top_right, bot_right, bot_left, top_left])
+    poly = Polygon(corners, closed=True, fill=False, edgecolor='r', linewidth=1)
+    poly2 = Polygon(corners, closed=False, fill=False, edgecolor='g', linewidth=1)
+    # add the polygon to the plot
+    ax[2].add_patch(poly)
+    ax[2].add_patch(poly2)
+    ax[2].set_aspect('equal', 'box')
+    ax[2].set_xlim(target[0] + 2, target[0] - 2)
+    ax[2].set_ylim(target[1] - 2, target[1] + 2)
 
-    # plot a box that represents the image
-    ax[2].plot([extent[0], extent[0]], [extent[2], extent[3]], color='red')
-    ax[2].plot([extent[1], extent[1]], [extent[2], extent[3]], color='red')
-    ax[2].plot([extent[0], extent[1]], [extent[2], extent[2]], color='red')
-    ax[2].plot([extent[0], extent[1]], [extent[3], extent[3]], color='red')
+
+
+
+
+
 
 # adding the quads
 q, corners_cat = plots.makePolygons(all_cat_quads, cat_data)
