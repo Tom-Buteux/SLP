@@ -161,7 +161,11 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
     if len(neighbors) < 3:
         return img_quads, img_codes
     i = 0
+    j = 0
     for combination in combinations(neighbors,3):
+        if j == 10:
+            break
+        j += 1
         
         quad = [star, *combination]
 
@@ -202,7 +206,7 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
                 # Add the patch to the Axes
                 ax.add_patch(rect)
             plt.show(block=False)
-            plt.pause(1.5)
+            plt.waitforbuttonpress()
             plt.close()
 
 

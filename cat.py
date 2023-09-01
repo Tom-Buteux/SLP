@@ -15,8 +15,11 @@ from scipy.spatial import cKDTree
 import itertools
 import pickle as pkl
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 import utils as utils
+import plots
 
 def cat2codes(RA_lims, DE_lims, N):
     # loading in the data
@@ -50,12 +53,8 @@ def cat2codes(RA_lims, DE_lims, N):
     #cat_data = cat_data.drop('recno', axis=1)
 
     cat_data = cat_data.copy()
-    # filter data
-    cat_data = cat_data[cat_data['_RAJ2000'] >= RA_lims[0]]
-    cat_data = cat_data[cat_data['_RAJ2000'] <= RA_lims[1]]
-    cat_data = cat_data[cat_data['_DEJ2000'] >= DE_lims[0]]
-    cat_data = cat_data[cat_data['_DEJ2000'] <= DE_lims[1]]
-    print('Length of filtered data: ', len(cat_data))
+    
+    
     
     cat_data['count'] = 0
     healpix_count = pd.DataFrame({'healpix': cat_data['healpix'].unique()})
@@ -70,6 +69,12 @@ def cat2codes(RA_lims, DE_lims, N):
             little_endian_type = dtype_name.replace(">", "<")
             cat_data[column] = cat_data[column].astype(little_endian_type)
 
+    # filter data
+    cat_data = cat_data[cat_data['_RAJ2000'] >= RA_lims[0]]
+    cat_data = cat_data[cat_data['_RAJ2000'] <= RA_lims[1]]
+    cat_data = cat_data[cat_data['_DEJ2000'] >= DE_lims[0]]
+    cat_data = cat_data[cat_data['_DEJ2000'] <= DE_lims[1]]
+    print('Length of filtered data: ', len(cat_data))
 
     # for each healpix pixel, only keep the N brightest stars
     for healpix in cat_data['healpix'].unique():
@@ -107,7 +112,7 @@ def cat2codes(RA_lims, DE_lims, N):
     tree = cKDTree(cat_data[['x', 'y', 'z']])
 
     # setting up Dmin and Dmax
-    Dmin = 2 * np.sin(np.radians(0.05)/2)
+    Dmin = 2 * np.sin(np.radians(0.15)/2)
     Dmax = 2 * np.sin(np.radians(0.35)/2)
 
     print ('Dmin: ', Dmin)
@@ -116,7 +121,7 @@ def cat2codes(RA_lims, DE_lims, N):
 
 
     # run the pass three times
-    for i in range(10):
+    for i in range(3):
         run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7)
         print(' Number of quads: ', len(quads))
 
@@ -144,7 +149,7 @@ def cat2codes(RA_lims, DE_lims, N):
 
     plt.show()
 
-
+    
     # save quads and hashcodes as lists
     np.save('quads.npy', quads)
     np.save('hashcodes.npy', hashcodes)
@@ -152,7 +157,7 @@ def cat2codes(RA_lims, DE_lims, N):
     # save cat_data as a DataFrame
     with open('cat_data.pkl', 'wb') as f:
         pkl.dump(cat_data, f)
-
+    
 
     
 
@@ -225,17 +230,85 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
                 # check which healpixel the centroid of the quad is in
                 centroid = cat_data.loc[quad, ['RA','DE']].mean()
+                
                 centroid_healpix = healpy.ang2pix(128, centroid['RA'], centroid['DE'], nest=True, lonlat=True)
 
                 # if the centroid is not in the same healpixel as the quad, continue
                 if centroid_healpix != healpix:
                     #print('centroid not in same healpix as quad')
                     continue
+                print('centroid:\n',centroid)
+                # here is code to find the cartesian coordinate of the quad centroid
+                centroid_x = np.cos(np.radians(centroid['DE'])) * np.cos(np.radians(centroid['RA']))
+                centroid_y = np.cos(np.radians(centroid['DE'])) * np.sin(np.radians(centroid['RA']))
+                centroid_z = np.sin(np.radians(centroid['DE']))
+
+                # for a unit sphere, the normal of the plane is the centroid of the quad
+                plane_normal = [centroid_x, centroid_y, centroid_z]
+
+                def project_point_to_plane(point, n): # n is the normal of the plane
+                    # find the distance from the point to the plane
+                    # vec is the vector from the point on plane to the point
+                    vec = np.subtract(point, np.array([0,0,0]))
+                    # d is the distance from the point to the plane
+                    d = np.dot(vec, n)
+                    # project the point onto the plane
+                    projected_point = np.subtract(point, np.multiply(d,n))
+                    return projected_point
+                
+                # project each point in quad onto the plane
+                projected_quad = np.array([project_point_to_plane(point, plane_normal) for point in inp])
+
+                # finding the orthogonal set of the plane normal
+                u,v = utils.find_orthogonal_set(plane_normal)
+
+                # find the coordinates of the projected quad in the new coordinate system
+                new_coordinates = [[np.dot(point, u), np.dot(point, v)] for point in projected_quad] 
+
+                # plot each polygon of new coordinates
+                fig, ax = plt.subplots(1, 2, figsize=(24, 12))
+                pts = plots.order_points(new_coordinates)
+                poly = Polygon(pts, closed=True, fill=False, color='r', linewidth=2)
+                ax[0].add_patch(poly)
+                
+                min_x = min([point[0] for point in new_coordinates])
+                max_x = max([point[0] for point in new_coordinates])
+                min_y = min([point[1] for point in new_coordinates])
+                max_y = max([point[1] for point in new_coordinates])
+                ax[0].set_xlim(min_x, max_x)
+                ax[0].set_ylim(min_y, max_y)
+
+                # for each quad, plot this againt the catalogue as a polygon
+                pts = plots.order_points(cat_data.loc[quad, ['RA', 'DE']].values)
+                poly = Polygon(pts, closed=True, fill=False, color='r', linewidth=2)
+                ax[1].add_patch(poly)
+                ax[1].scatter(cat_data['RA'], cat_data['DE'], s=30000/(10**(cat_data['VTmag']/2.5))*2,color='black')
+                plt.show(block=False)
+                plt.waitforbuttonpress()
+                plt.close()
+                
+                    
+
+
+           
+
+
+
+                
+                
+
+
+
+
+
+                
+
+
 
                 # add quad to quads
                 quads.append(quad)
                 # create hashcode for quad
-                hashcode = tuple(utils.hashcode(cat_data.loc[quad, ['RA', 'DE']].values))
+                hashcode = tuple(utils.hashcode(new_coordinates))
                 hashcodes.append(hashcode)
                 # increment count for each star in quad
                 cat_data.loc[list(quad), 'count'] += 1
@@ -253,7 +326,8 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
 
 # running code
+cat2codes([0,360],[0,90],7)
 #cat2codes([70,90],[70,90],7)
-cat2codes([0,360],[0,90],10)
+#cat2codes([36,39],[55,57],10)
 #cat2codes([9,14],[9,14],5)
 

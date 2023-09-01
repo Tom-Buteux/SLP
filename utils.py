@@ -174,3 +174,27 @@ def centroid(vertices):
     centroid_coords = vertices.mean(axis=0)
     return tuple(centroid_coords)
 
+def find_orthogonal_set(vec):
+    """Find two vectors that are orthogonal to the given vector `vec`."""
+    if np.linalg.norm(vec) == 0:
+        raise ValueError("The input vector must not be the zero vector.")
+    
+    # Normalize the input vector
+    vec = vec / np.linalg.norm(vec)
+    
+    # Initialize candidates for orthogonal vectors
+    candidates = [np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])]
+    
+    # Make sure the candidates are not parallel to the input vector
+    candidates = [c for c in candidates if np.abs(np.dot(vec, c)) < 1.0]
+    
+    # Choose one candidate and find a vector orthogonal to it and the input vector
+    chosen = candidates[0]
+    ortho1 = np.cross(vec, chosen)
+    ortho1 = ortho1 / np.linalg.norm(ortho1)  # normalize
+    
+    # Find another vector that is orthogonal to both `vec` and `ortho1`
+    ortho2 = np.cross(vec, ortho1)
+    ortho2 = ortho2 / np.linalg.norm(ortho2)  # normalize
+    
+    return ortho1, ortho2
