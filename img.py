@@ -163,7 +163,7 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
     i = 0
     j = 0
     for combination in combinations(neighbors,3):
-        if j == 6:
+        if j == 10:
             break
         j += 1
         
