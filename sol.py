@@ -40,7 +40,7 @@ print('catalogue data loaded successfully')
 print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
-file = 'test_sets/red.fits'
+file = 'test_sets/60arcmin9.fits'
 t1 = time.time()
 img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
 img_quads = []
