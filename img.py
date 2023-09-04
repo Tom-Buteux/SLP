@@ -146,7 +146,7 @@ def imgSetUp(file):
 
 # creating progressive function
 def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
-    plot = False
+    plot = True
     current_data = img_data.head(N).copy()
     star = N-1
     # find all neigbors of the star that are within 0.35 * image_size

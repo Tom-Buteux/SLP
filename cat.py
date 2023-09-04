@@ -23,21 +23,45 @@ import plots
 
 def cat2codes(RA_lims, DE_lims, N):
     # loading in the data
-    """
+
     northern_data = fits.open('T2_northern.fit', ignore_missing_simple=True)
     southern_data = fits.open('T2_southern.fit', ignore_missing_simple=True)
+    # load dat_1 to dat_6 from 'gaia/' directory
+    dat_1 = fits.open('gaia/0-36-result.fits', ignore_missing_simple=True)
+    dat_2 = fits.open('gaia/36-72-result.fits', ignore_missing_simple=True)
+    # 72-108 is truncated so it is split into two files
+    dat_3 = fits.open('gaia/72-90-result.fits', ignore_missing_simple=True)
+    dat_4 = fits.open('gaia/90-108-result.fits', ignore_missing_simple=True)
+    dat_5 = fits.open('gaia/108-144-result.fits', ignore_missing_simple=True)
+    dat_6 = fits.open('gaia/144-180-result.fits', ignore_missing_simple=True)
+
+
 
     # converting data to pandas dataframe
-    northern_df = pd.DataFrame(northern_data[1].data)
-    southern_df = pd.DataFrame(southern_data[1].data)
+    dat_1 = pd.DataFrame(dat_1[1].data)
+    dat_2 = pd.DataFrame(dat_2[1].data)
+    dat_3 = pd.DataFrame(dat_3[1].data)
+    dat_4 = pd.DataFrame(dat_4[1].data)
+    dat_5 = pd.DataFrame(dat_5[1].data)
+    dat_6 = pd.DataFrame(dat_6[1].data)
 
-    # concatenating dataframes
-    cat_data = pd.concat([northern_df,southern_df],ignore_index=True)
-    """
-    cat_data = fits.open('asu-4.fit', ignore_missing_simple=True)
-    cat_data = pd.DataFrame(cat_data[1].data)
+
+
+    # concat dataframes
+    cat_data = pd.concat([dat_1,dat_2,dat_3,dat_4,dat_5,dat_6],ignore_index=True)
+
     print(cat_data.columns)
 
+    
+    # if the columns contain 'ra' chenge to '_RAJ2000' and same for dec
+    if 'ra' in cat_data.columns:
+        cat_data = cat_data.rename(columns={'ra':'_RAJ2000','dec':'_DEJ2000'})
+
+    # if the columns contain 'phot_g_mean_mag' chenge to 'VTmag'
+    if 'phot_g_mean_mag' in cat_data.columns:
+        cat_data = cat_data.rename(columns={'phot_g_mean_mag':'VTmag'})
+
+    ValueError('stop here')
     # resetting index
     cat_data = cat_data.reset_index(drop=True)
     cat_data = cat_data.copy()
@@ -121,7 +145,7 @@ def cat2codes(RA_lims, DE_lims, N):
 
 
     # run the pass three times
-    for i in range(3):
+    for i in range(5):
         run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7)
         print(' Number of quads: ', len(quads))
 
@@ -237,7 +261,6 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
                 if centroid_healpix != healpix:
                     #print('centroid not in same healpix as quad')
                     continue
-                print('centroid:\n',centroid)
                 # here is code to find the cartesian coordinate of the quad centroid
                 centroid_x = np.cos(np.radians(centroid['DE'])) * np.cos(np.radians(centroid['RA']))
                 centroid_y = np.cos(np.radians(centroid['DE'])) * np.sin(np.radians(centroid['RA']))
@@ -264,7 +287,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
                 # find the coordinates of the projected quad in the new coordinate system
                 new_coordinates = [[np.dot(point, u), np.dot(point, v)] for point in projected_quad] 
-
+                """
                 # plot each polygon of new coordinates
                 fig, ax = plt.subplots(1, 2, figsize=(24, 12))
                 pts = plots.order_points(new_coordinates)
@@ -286,6 +309,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
                 plt.show(block=False)
                 plt.waitforbuttonpress()
                 plt.close()
+                """
                 
                     
 
@@ -326,8 +350,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
 
 # running code
-cat2codes([0,360],[0,90],7)
+cat2codes([0,180],[0,90],7)
 #cat2codes([70,90],[70,90],7)
 #cat2codes([36,39],[55,57],10)
 #cat2codes([9,14],[9,14],5)
-
