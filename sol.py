@@ -40,7 +40,7 @@ print('catalogue data loaded successfully')
 print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin1.fits'
+file = 'test_sets/test_owlsim.fits'
 t1 = time.time()
 img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
 img_quads = []
@@ -181,21 +181,23 @@ ax[0].add_collection(p)
 ax[0].plot(img_data['x'][:N_max], img_data['y'][:N_max], 'ro', fillstyle='none')
 
 # plot the catalogue, trim the data to 0.5 eitherside of the target
-plot_data = cat_data[(cat_data['RA'] > target[0] - 0.5) & (cat_data['RA'] < target[0] + 0.5) & (cat_data['DE'] > target[1] - 0.5) & (cat_data['DE'] < target[1] + 0.5)]
+img_FOV = 5.5
+plot_data = cat_data[(cat_data['RA'] > target[0] - img_FOV) & (cat_data['RA'] < target[0] + img_FOV) & (cat_data['DE'] > target[1] - img_FOV) & (cat_data['DE'] < target[1] + img_FOV)]
 ax[1].scatter(plot_data['RA'], plot_data['DE'], s=30000/(10**(plot_data['VTmag']/2.5))*2)
 ax[1].set_title('Catalogue')
 ax[1].set_xlabel('RA')
 ax[1].set_ylabel('DE')
-ax[1].set_xlim(target[0] - 0.5, target[0] + 0.5)
-ax[1].set_ylim(target[1] - 0.5, target[1] + 0.5)
+ax[1].set_xlim(target[0] - img_FOV, target[0] + img_FOV)
+ax[1].set_ylim(target[1] - img_FOV, target[1] + img_FOV)
 ax[1].invert_xaxis()
 ax[1].set_aspect('equal', 'box')
 all_cat_quads = [tuple(x) for x in all_cat_quads]
 q, corners_cat = plots.makePolygons(all_cat_quads, cat_data)
 ax[1].add_collection(q)
 
-# in 3rd subplot, plot all cat_data within 3 deg of target
-plot2_data = cat_data[(cat_data['RA'] > target[0] - 3) & (cat_data['RA'] < target[0] + 3) & (cat_data['DE'] > target[1] - 3) & (cat_data['DE'] < target[1] + 3)]
+# in 3rd subplot, plot all cat_data within X deg of target
+X = 10
+plot2_data = cat_data[(cat_data['RA'] > target[0] - X) & (cat_data['RA'] < target[0] + X) & (cat_data['DE'] > target[1] - X) & (cat_data['DE'] < target[1] + X)]
 ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTmag']/2.5))*2)
 ax[2].invert_xaxis()
 # plot the image superimposed on the catalogue in the correct WC

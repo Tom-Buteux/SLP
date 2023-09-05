@@ -23,7 +23,7 @@ import plots
 
 def cat2codes(RA_lims, DE_lims, N):
     # loading in the data
-
+    """
     northern_data = fits.open('T2_northern.fit', ignore_missing_simple=True)
     southern_data = fits.open('T2_southern.fit', ignore_missing_simple=True)
     # load dat_1 to dat_6 from 'gaia/' directory
@@ -45,10 +45,14 @@ def cat2codes(RA_lims, DE_lims, N):
     dat_5 = pd.DataFrame(dat_5[1].data)
     dat_6 = pd.DataFrame(dat_6[1].data)
 
+    """
+    # load in 2mass_J_section.fit
+    cat_data = fits.open('2mass_J_section.fit', ignore_missing_simple=True)
+    # change the column Jmag to VTmag
 
-
+    cat_data = pd.DataFrame(cat_data[1].data)
     # concat dataframes
-    cat_data = pd.concat([dat_1,dat_2,dat_3,dat_4,dat_5,dat_6],ignore_index=True)
+    #cat_data = pd.concat([dat_1,dat_2,dat_3,dat_4,dat_5,dat_6],ignore_index=True)
 
     print(cat_data.columns)
 
@@ -65,13 +69,13 @@ def cat2codes(RA_lims, DE_lims, N):
     # resetting index
     cat_data = cat_data.reset_index(drop=True)
     cat_data = cat_data.copy()
-    cat_data = cat_data.rename(columns={'R1mag':'VTmag'})
+    cat_data = cat_data.rename(columns={'Jmag':'VTmag'})
 
     # create a list of healpix pixels for each coordinate in cat_data
     """
     Future work: Here i want to automate the healpix generation for different plate scale (FOV) 
     """
-    cat_data['healpix'] = healpy.ang2pix(128, cat_data['_RAJ2000'], cat_data['_DEJ2000'], nest=True, lonlat=True)
+    cat_data['healpix'] = healpy.ang2pix(64, cat_data['_RAJ2000'], cat_data['_DEJ2000'], nest=True, lonlat=True)
 
     # dropping the recno column
     #cat_data = cat_data.drop('recno', axis=1)
@@ -134,10 +138,11 @@ def cat2codes(RA_lims, DE_lims, N):
 
     # create a cKDTRee object for the x, y, z coordinates
     tree = cKDTree(cat_data[['x', 'y', 'z']])
+    FOV = 4
 
     # setting up Dmin and Dmax
-    Dmin = 2 * np.sin(np.radians(0.15)/2)
-    Dmax = 2 * np.sin(np.radians(0.35)/2)
+    Dmin = 2 * np.sin(np.radians(FOV *0.15)/2)
+    Dmax = 2 * np.sin(np.radians(FOV * 0.35)/2)
 
     print ('Dmin: ', Dmin)
     print ('Dmax: ', Dmax)
@@ -255,7 +260,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
                 # check which healpixel the centroid of the quad is in
                 centroid = cat_data.loc[quad, ['RA','DE']].mean()
                 
-                centroid_healpix = healpy.ang2pix(128, centroid['RA'], centroid['DE'], nest=True, lonlat=True)
+                centroid_healpix = healpy.ang2pix(64, centroid['RA'], centroid['DE'], nest=True, lonlat=True)
 
                 # if the centroid is not in the same healpixel as the quad, continue
                 if centroid_healpix != healpix:
@@ -350,7 +355,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
 
 # running code
-cat2codes([0,180],[0,90],7)
+cat2codes([170,190],[0,20],7)
 #cat2codes([70,90],[70,90],7)
 #cat2codes([36,39],[55,57],10)
 #cat2codes([9,14],[9,14],5)

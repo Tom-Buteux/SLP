@@ -60,3 +60,6 @@ def rotate_point(x, y, angle_rad, cx, cy):
     return x_new, y_new
 
 
+# set ax 
+
+
