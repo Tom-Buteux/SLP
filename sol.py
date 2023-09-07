@@ -24,6 +24,10 @@ import time
 import img
 import utils
 import plots
+from scipy.spatial import ConvexHull
+
+
+
 
 print('------------------')
 # setting up stores for plotting
@@ -40,7 +44,7 @@ print('catalogue data loaded successfully')
 print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin2.fits'
+file = 'test_sets/60arcmin3.fits'
 t1 = time.time()
 img_FOV = 1 # degrees (greatest dimension)
 img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
@@ -63,12 +67,21 @@ for N in range(4,N_max):
     print('N = ', N)
     # test each quad against the catalogue
     try:
-        cat_ind = cat_tree.query_ball_point(img_codes, r=0.01)
+        cat_dist, cat_ind = cat_tree.query(img_codes, k = 1, distance_upper_bound=0.03)
+        print('cat_dist: ', cat_dist)
+        print('cat_ind: ', cat_ind)
+        if N < N_max:
+            continue
+        
     except:
         print('no quads built')
         img_quads = []
         img_codes = []
         continue
+
+    
+
+    exit()
     # if there are no matches, continue
 
     # if cat_ind is not empty
@@ -83,17 +96,21 @@ for N in range(4,N_max):
             w,wldcen,pxlcen = utils.quad2wcs(img_quads[img_ind[0]], img_data, cat_quads[ind], cat_data, image)
             print('crval: ',w.wcs.crval)
             wcs_store.append(w)
+            img_store.append(img_quads[img_ind[0]])
+            cat_store.append(cat_quads[ind])
 
     else:
         continue
     # reset the quads and codes
     # if the wcs has 2 or more entries, find any wcs where the crvals are within img_FOV deg of each other
-    if len(wcs_store) > 4:
+    wcs_ind=[]
+    if len(wcs_store) > 2:
         # create a distance matrix of the wcs crvals
         wcs_crvals = np.array([wcs.wcs.crval for wcs in wcs_store])
+        print('wcs_crvals: \n', wcs_crvals)
         # convert to radians
         wcs_crvals = np.radians(wcs_crvals)
-        print('wcs_crvals: \n', wcs_crvals)
+        
         # convert the crvals to cartesian coordinates on a unit sphere using numpy broadcasting
         wcs_crvals_cart = np.array([np.cos(wcs_crvals[:,0])*np.cos(wcs_crvals[:,1]), np.sin(wcs_crvals[:,0])*np.cos(wcs_crvals[:,1]), np.sin(wcs_crvals[:,1])]).T
         print('wcs_crvals_cart: \n', wcs_crvals_cart)
@@ -102,7 +119,6 @@ for N in range(4,N_max):
         wcs_dist = np.linalg.norm(wcs_crvals_cart[:,None] - wcs_crvals_cart[None,:], axis=2)
         print('wcs_dist: \n', wcs_dist)
         # find the indices of the wcs that are within img_FOV of each other and not diagonal or repeated
-
         wcs_ind = np.argwhere((wcs_dist < img_FOV * 1.74109367e-02) & (wcs_dist > 0))
         # find the unique indices
         wcs_ind = np.unique(wcs_ind[:,0])
@@ -116,39 +132,64 @@ for N in range(4,N_max):
         else:
             continue
 
-           
-         
-    
-print('we got this far')   
+# filter the img_store and cat_store to only include the wcs that agree
+img_store = [img_store[i] for i in wcs_ind]
+cat_store = [tuple(cat_store[i]) for i in wcs_ind]
 
-if len(wcs_ind) == 0:
-    print('No result over ', N_max, ' stars')
-    exit()
+print('img_store: \n', img_store)
+print('cat_store: \n', cat_store)
 
-print('img_store:\n ', img_store)
-print('cat_store:\n ', cat_store)
+# for each quad in img_store find the a,b,c,d values
+# for each quad in cat_store find the a,b,c,d values
+img_coords = []
+for quad in img_store:
+    a,b,c,d,_ = utils.findABCD(img_data.loc[list(quad), ['x', 'y']].values)
+    img_coords.append([a,b,c,d])
+img_coords = np.array(img_coords)
+img_coords = np.vstack(img_coords)
+print('img_coords: \n', img_coords)
 
+cat_coords = []
+for quad in cat_store:
+    a,b,c,d,_ = utils.findABCD(cat_data.loc[list(quad), ['RA', 'DE']].values)
+    cat_coords.append([a,b,c,d])
+cat_coords = np.array(cat_coords)
+cat_coords = np.vstack(cat_coords)
+print('cat_coords: \n', cat_coords)
 
-# create a list of hypothesis wcs objects
-w_hyp = [wcs_store[ind] for ind in wcs_ind]
-print('w_hyp: \n', w_hyp)
+# fidn the index where any duplicates occur
+img_ind = np.unique(img_coords, axis=0, return_index=True)[1]
+print('img_ duplicates: \n', img_ind)
+# remove the duplicates
+img_coords = img_coords[img_ind]
+cat_coords = cat_coords[img_ind]
+print('img_coords: \n', img_coords)
+print('cat_coords: \n', cat_coords)
 
-pixel_points = np.array([w.wcs.crpix for w in w_hyp])
-world_points = np.array([w.wcs.crval for w in w_hyp])
-print('pixel_points: \n', pixel_points)
-print('world_points: \n', world_points)
+    # in left subplot, plot all the coords in img_coords
+for rand in range(len(img_coords)):
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+    ax[0].scatter(img_coords[:,0], img_coords[:,1])
+    ax[0].scatter(img_coords[rand,0], img_coords[rand,1],color='r')
+    ax[0].invert_yaxis()
 
-# creating a reference pixel and world point (the mean of the points)
-pixel_ref = np.mean(pixel_points, axis=0)
-world_ref = np.mean(world_points, axis=0)
-print('pixel_ref: \n', pixel_ref)
-print('world_ref: \n', world_ref)
+    ax[1].scatter(cat_coords[:,0], cat_coords[:,1])
+    ax[1].scatter(cat_coords[rand,0], cat_coords[rand,1],color ='r')
+    ax[1].invert_xaxis()
+    plt.show(block=False)
+    plt.waitforbuttonpress()
+    plt.close()
 
-# calculate deltas
-pixel_deltas = pixel_points - pixel_ref
-world_deltas = world_points - world_ref
+  
+# finding the cat_coord with the hightest RA value
+world_max = cat_coords[np.argmax(cat_coords[:,0])]
+world_min = cat_coords[np.argmin(cat_coords[:,0])]
+pixel_max = img_coords[np.argmax(cat_coords[:,0])]
+pixel_min = img_coords[np.argmin(cat_coords[:,0])]
 
-print(len(pixel_deltas), len(world_deltas))
+print('world and pixel max and mins: \n', world_max, world_min, pixel_max, pixel_min)
+
+exit()
 
 # Prepare matrices for lstsq
 A = np.zeros((2*len(pixel_deltas), 4))
@@ -160,6 +201,7 @@ A[1::2, 2:] = pixel_deltas
 
 B[::2] = world_deltas[:, 0]
 B[1::2] = world_deltas[:, 1]
+
 
 # print matrices
 print('A: \n', A)
@@ -185,7 +227,7 @@ wldcen = w_new.all_pix2world(pxlcen[0],pxlcen[1],1)
 print('wldcen: ', wldcen)
 
 # convert the brightest N_max stars in the image to RA and DE
-refine_wld_RA, refine_wld_DEC = w_new.all_pix2world(img_data.loc[:15, ['x', 'y']].values, 1).T
+refine_wld_RA, refine_wld_DEC = w_new.all_pix2world(img_data.loc[:30, ['x', 'y']].values, 1).T
 # convert to a list of tuples
 refine_wld = [(refine_wld_RA[i], refine_wld_DEC[i]) for i in range(len(refine_wld_RA))]
 
@@ -202,6 +244,11 @@ print('cat_ind: ', cat_ind)
 cat_dist = cat_dist[img_ind]
 print('cat_dist: ', cat_dist)
 
+# print the coordinates of cat_ind
+cat_ind = cat_ind.flatten()
+ras,decs = cat_data.loc[cat_ind, ['RA', 'DE']].values.T
+print('ras: ', ras)
+print('decs: ', decs)
 
 
 
@@ -218,10 +265,15 @@ ax[0].imshow(initial_image, cmap='gray')
 ax[0].set_title('Image')
 ax[0].set_xlabel('x')
 ax[0].set_ylabel('y')
+# plot pixel_ref as a black cross   
+ax[0].plot(pixel_ref[0], pixel_ref[1], 'kx')
 # plot the quads 
 p, corners_img = plots.makePolygons(img_store, img_data)
 # add p (patch collection) to the plot
 ax[0].add_collection(p)
+
+#plot hull points
+ax[0].plot(hull_points_pixel[:,0], hull_points_pixel[:,1], 'r--', fillstyle='none')
 # plot the image data as green circles with no fill
 ax[0].plot(img_data['x'][:N_max], img_data['y'][:N_max], 'ro', fillstyle='none')
 
@@ -235,15 +287,21 @@ ax[1].set_xlim(target[0] - 0.5, target[0] + 0.5)
 ax[1].set_ylim(target[1] - 0.5, target[1] + 0.5)
 ax[1].invert_xaxis()
 ax[1].set_aspect('equal', 'box')
+# plot hull points world
+ax[1].plot(hull_points_world[:,0], hull_points_world[:,1], 'r--', fillstyle='none')
+
 cat_store = [tuple(x) for x in cat_store]
 q, corners_cat = plots.makePolygons(cat_store, cat_data)
 ax[1].add_collection(q)
-
+# plot world_ref as a black cross
+ax[1].plot(world_ref[0], world_ref[1], 'kx')
 # in 3rd subplot, plot all cat_data within 3 deg of target
 plot2_data = cat_data[(cat_data['RA'] > target[0] - 3) & (cat_data['RA'] < target[0] + 3) & (cat_data['DE'] > target[1] - 3) & (cat_data['DE'] < target[1] + 3)]
 ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTmag']/2.5))*2)
 # plot refine_wld as red circles with no fill
 ax[2].plot([x[0] for x in refine_wld], [x[1] for x in refine_wld], 'ro', fillstyle='none')
+# plot the matching stars as green circles with no fill
+ax[2].plot(ras, decs, 'go', fillstyle='none')
 ax[2].invert_xaxis()
 # plot the image superimposed on the catalogue in the correct WC
 # The extent should be in world coordinates. The corners of the image give the extent.

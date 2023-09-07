@@ -4,22 +4,34 @@ import pandas as pd
 
 def findABCD(coordinates):
     points = np.array(coordinates)
-    num_points = len(points)
-    distances = np.zeros((num_points, num_points))
+    dist = np.linalg.norm(points[:,None] - points[None,:], axis=2)
 
-    for i in range(num_points):
-        for j in range(i+1, num_points):
-            dist = np.linalg.norm(points[i] - points[j])
-            distances[i, j] = dist
 
-    i, j = np.unravel_index(np.argmax(distances, axis=None), distances.shape)
+    # A and B are the points that are furthest apart
+    i, j = np.unravel_index(np.argmax(dist, axis=None), dist.shape)
+
     A = points[i]
     B = points[j]
-    other_indices = [idx for idx in range(num_points) if idx not in [i, j]]
+
+    # assign the other 2 points to C and D
+    other_indices = [idx for idx in range(len(points)) if idx not in [i, j]]
     C = points[other_indices[0]]
     D = points[other_indices[1]]
 
-    return A, B, C, D, np.max(distances)
+    # if B is closer to the mean of C and D than A is, swap A and B
+    if np.linalg.norm(B - np.mean([C, D], axis=0)) < np.linalg.norm(A - np.mean([C, D], axis=0)):
+        A = points[j]
+        B = points[i]
+
+    # C is closer to A than D is
+    if np.linalg.norm(C - A) > np.linalg.norm(D - A):
+        C = points[other_indices[1]]
+        D = points[other_indices[0]]
+
+
+
+    
+    return A, B, C, D, np.max(dist)
 
 
 
@@ -224,4 +236,23 @@ def quad2wcs(img_quad,img_data,cat_quad,cat_data,image):
     wldcen = w.all_pix2world(pxlcen[0],pxlcen[1],1)
 
     return w, wldcen, pxlcen
+
+def calculate_quadrilateral_area(coords):
+    # Coords should be an array of shape (4, 2)
+    a, b, c, d = coords
+    # Calculate vectors
+    ab = b - a
+    ad = d - a
+    bc = c - b
+    # Compute the areas of the two triangles
+    area1 = np.abs(np.cross(ab, ad)) / 2
+    area2 = np.abs(np.cross(bc, ab)) / 2
+    # Sum the areas of the triangles to get the area of the quadrilateral
+    return area1 + area2
+
+coords = [[11.75632222, 11.97369972],
+ [11.51820064, 12.10740374],
+ [11.7608145,  12.07167874],
+ [11.62139425, 12.10887813]]
+
 
