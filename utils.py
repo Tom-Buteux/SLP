@@ -1,4 +1,6 @@
 import numpy as np
+from astropy.wcs import WCS
+import pandas as pd
 
 def findABCD(coordinates):
     points = np.array(coordinates)
@@ -198,3 +200,28 @@ def find_orthogonal_set(vec):
     ortho2 = ortho2 / np.linalg.norm(ortho2)  # normalize
     
     return ortho1, ortho2
+
+def quad2wcs(img_quad,img_data,cat_quad,cat_data,image):
+    img_shape = np.shape(image)
+    print('shape: ', img_shape)
+
+    # takes in a list of quads for the image and the cat.
+    # for each pair of quads, create a wcs object
+    # for each wcs, find the ra and dec of the image corners
+    
+    img_coords = img_data.loc[list(img_quad),['x','y']].values
+    cat_coords = cat_data.loc[list(cat_quad),['RA','DE']].values
+    img_A, img_B, img_C, img_D, _ = findABCD(img_coords)
+    cat_A, cat_B, cat_C, cat_D, _ = findABCD(cat_coords)
+    w = WCS(naxis=2)
+    w.wcs.crval = (cat_A[0],cat_A[1])
+    w.wcs.crpix = (img_A[0],img_A[1])
+    w.wcs.cdelt = (img_shape[0]/3600,img_shape[1]/3600)
+    w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+
+    # calculate the world coordinates of the image centre
+    pxlcen = np.array([img_shape[0]/2,img_shape[1]/2])
+    wldcen = w.all_pix2world(pxlcen[0],pxlcen[1],1)
+
+    return w, wldcen, pxlcen
+
