@@ -54,7 +54,7 @@ img_store = []
 cat_store = []
 wcs_store = []
 
-N_max = np.min([70,len(img_data)])
+N_max = np.min([20,len(img_data)])
 w = None
 found = False
 for N in range(4,N_max):
@@ -67,21 +67,48 @@ for N in range(4,N_max):
     print('N = ', N)
     # test each quad against the catalogue
     try:
-        cat_dist, cat_ind = cat_tree.query(img_codes, k = 1, distance_upper_bound=0.03)
+        cat_dist, cat_ind = cat_tree.query(img_codes, k = 1)
+        print(len(cat_ind), 'matches found')
         print('cat_dist: ', cat_dist)
         print('cat_ind: ', cat_ind)
-        if N < N_max:
-            continue
+
         
     except:
         print('no quads built')
         img_quads = []
         img_codes = []
         continue
-
     
+    limit = 0.01
+    # remove any cat_ind that the dist is above 0.03
+    cat_ind = cat_ind[cat_dist < limit]
+    img_ind = np.where(cat_dist < limit)
+    cat_dist = cat_dist[cat_dist < limit]
 
-    exit()
+    print('cat_dist: ', cat_dist)
+    print('cat_ind: ', cat_ind)
+    print('img_ind: ', img_ind)
+
+     
+    # if there are matches, find the equivalent quads in the catalogue
+    if cat_ind.size > 0:
+        for i in range(len(cat_ind)):
+            print('cat quad: ', tuple(cat_quads[cat_ind[i]]))
+            print('img quad: ', tuple(img_quads[img_ind[0][i]]))
+            cat_store.append(tuple(cat_quads[cat_ind[i]]))
+            img_store.append(tuple(img_quads[img_ind[0][i]]))
+
+
+    if N < N_max-1:
+        continue
+    else:
+        print('STORES')
+        print('img_store: \n', img_store)
+        print('cat_store: \n', cat_store)
+        exit()
+
+
+    """ CONTINUE HERE, NEXT WE NEED TO TEST IF 3 OF THE MATCHES ARE WITHIN THE IMAGE FOV OF EACH OTHER """
     # if there are no matches, continue
 
     # if cat_ind is not empty
@@ -131,7 +158,7 @@ for N in range(4,N_max):
             break
         else:
             continue
-
+exit()
 # filter the img_store and cat_store to only include the wcs that agree
 img_store = [img_store[i] for i in wcs_ind]
 cat_store = [tuple(cat_store[i]) for i in wcs_ind]
