@@ -163,6 +163,56 @@ def coords_to_WCS(img_coords, cat_coords):
     w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
     return w
 
+def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
+    """
+    Tests a WCS object against the image to see if the WCS object is a good fit.
+
+    Parameters:
+    ----------
+    cat_quad : tuple
+        A tuple of indices corresponding to the stars in cat_data.
+
+    cat_data : pandas.DataFrame
+        The data source from which the indices were generated.
+
+    cat_tree_cartesian : cKDTree object
+        A KD-Tree generated from catalog cartesian coordinates, used for spatial searches.
+
+    image_FOV : float
+        The field of view of the image in degrees.
+
+    w : astropy.wcs.WCS
+        A WCS object to be tested
+
+    threshold : float
+        The maximum distance (in pixel space) within which two stars are considered to be a match.
+
+    Returns:
+    -------
+    verified_matches : int
+        The number of stars in the cat_quad that are within threshold range of a star in the image.
+
+    """
+
+    # find the 'x','y','z' centroid of the cat quad
+    cat_centroid = utils.centroid(cat_data.loc[list(cat_quad),['x','y','z']].values)
+    # search the area around the quad centroid for stars within the FOV of the image
+    ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(image_FOV)/2))
+    # convert the indices into a list of stars
+    cat_test = cat_data.loc[list(cat_data.iloc[ind].index),['RA','DE']].values
+    # convert the list of stars into pixel coordinates
+    cat_pix = w.all_world2pix(cat_test,1)
+    # check to see how many of the stars are in the image (threshold variable)
+    ind2 = img_tree.query_ball_point(cat_pix, r = threshold) # ind2 is the iloc indicies of the stars in img_data that are within threshold of the cat_quad
+    # find the number of non-empty lists
+    verified_matches = np.count_nonzero(ind2)
+    return verified_matches
+
+
+
+
+
+
 
 
 
@@ -225,23 +275,9 @@ for N in range(4,N_max):
 
 
         # test the WCS object against the image
-        # query the quad centre coordinates against the cat_tree_cartesian
-        cat_centroid = utils.centroid(cat_data.loc[list(cat_quad),['x','y','z']].values)
-        ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(2)/2))
-        # convert the indices into a list of stars
-        cat_test = cat_data.loc[list(cat_data.iloc[ind].index),['RA','DE']].values
+        number_of_matches = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10)
 
-
-        # convert the list of stars into pixel coordinates
-        cat_pix = w.all_world2pix(cat_test,1)
-
-        # query the cat_pix against the img_tree
-        ind2 = img_tree.query_ball_point(cat_pix, r = 10)
-
-        # find the number of non-empty lists
-        non_empty = np.count_nonzero(ind2)
-
-        if non_empty >= 10:
+        if number_of_matches >= 10:
             # find the RA and DE of centre of the image
             width = np.shape(image)[0]
             height = np.shape(image)[1]
