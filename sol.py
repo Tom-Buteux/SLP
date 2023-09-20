@@ -110,8 +110,60 @@ def index_to_coords(ind, quads, data):
     # raise an error if the coordinates are not found
     if len(coords) == 0:
         raise Exception('No coordinates found')
+
     return coords, quad
-    
+
+def coords_to_WCS(img_coords, cat_coords):
+    """
+    Converts 2 lists of coordinates (pixel and world) to a WCS object.
+
+    Parameters:
+    ----------
+    img_coords : array-like
+        A list of pixel coordinates.
+
+    cat_coords : array-like
+        A list of world coordinates.
+
+    Returns:
+    -------
+    w : astropy.wcs.WCS
+        A WCS object.
+    """
+
+    # reordering the coords so that A and B match in both i.e. img_A is the same star as cat_A
+    img_coords, _, _ = utils.sortABCD(img_coords)
+    cat_coords, _, _ = utils.sortABCD(cat_coords)
+    img_A = img_coords[0]
+    img_B = img_coords[1]
+    cat_A = cat_coords[0]
+    cat_B = cat_coords[1]
+
+    # create a WCS object
+    w = WCS(naxis=2)
+    w.wcs.crpix = [img_A[0], img_A[1]]
+    w.wcs.crval = [cat_A[0], cat_A[1]]
+    w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    # THIS SECTION REGARDS THE CREATION OF THE CD MATRIX
+    # calculate the scale
+    img_scale = np.linalg.norm(np.subtract(img_B, img_A))
+    cat_scale = np.linalg.norm(np.subtract(cat_B, cat_A))
+    scale = cat_scale / img_scale # degrees per pixel
+
+    # calculate the rotation matrix
+    img_AB = np.subtract(img_B, img_A)
+    cat_AB = np.subtract(cat_B, cat_A)
+    theta = np.arccos(np.dot(img_AB, cat_AB) / (np.linalg.norm(img_AB) * np.linalg.norm(cat_AB)))
+
+    # calculate the CD matrix
+    cd11 = scale * np.cos(theta)
+    cd12 = -scale * np.sin(theta)
+    cd21 = scale * np.sin(theta)
+    cd22 = scale * np.cos(theta)
+    w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
+    return w
+
+
 
 
 print('------------------')
@@ -160,9 +212,6 @@ for N in range(4,N_max):
         cat_index = matching_cat_indices[i]
         img_index = matching_img_indices[i]
 
-
-
-
         # convert the quads into a list of stars
         cat_stars, cat_quad = index_to_coords(cat_index, cat_quads, cat_data)
         img_stars, img_quad = index_to_coords(img_index, img_quads, img_data)
@@ -171,36 +220,9 @@ for N in range(4,N_max):
         all_cat_quads.append(cat_quad)
         all_img_quads.append(img_quad)
 
-        # finding the ref and val stars for a WCS object
-        img_coords, _, _ = utils.sortABCD(img_stars)
-        cat_coords, _, _ = utils.sortABCD(cat_stars)
-        img_A = img_coords[0]
-        img_B = img_coords[1]
-        cat_A = cat_coords[0]
-        cat_B = cat_coords[1]
+        # using the pair of quads to create a WCS object
+        w = coords_to_WCS(img_stars, cat_stars)
 
-        # create a WCS object
-        w = WCS(naxis=2)
-        w.wcs.crpix = [img_A[0], img_A[1]]
-        w.wcs.crval = [cat_A[0], cat_A[1]]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
-        # THIS SECTION REGARDS THE CREATION OF THE CD MATRIX
-        # calculate the scale
-        img_scale = np.linalg.norm(np.subtract(img_B, img_A))
-        cat_scale = np.linalg.norm(np.subtract(cat_B, cat_A))
-        scale = cat_scale / img_scale # degrees per pixel
-
-        # calculate the rotation matrix
-        img_AB = np.subtract(img_B, img_A)
-        cat_AB = np.subtract(cat_B, cat_A)
-        theta = np.arccos(np.dot(img_AB, cat_AB) / (np.linalg.norm(img_AB) * np.linalg.norm(cat_AB)))
-
-        # calculate the CD matrix
-        cd11 = scale * np.cos(theta)
-        cd12 = -scale * np.sin(theta)
-        cd21 = scale * np.sin(theta)
-        cd22 = scale * np.cos(theta)
-        w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
 
         # test the WCS object against the image
         # query the quad centre coordinates against the cat_tree_cartesian
