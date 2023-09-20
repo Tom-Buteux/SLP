@@ -40,7 +40,7 @@ print('catalogue data loaded successfully')
 print(len(cat_quads), 'catalogue quads')
 
 # creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin1.fits'
+file = 'test_sets/60arcmin9.fits'
 t1 = time.time()
 img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
 img_quads = []
@@ -198,6 +198,9 @@ ax[1].add_collection(q)
 plot2_data = cat_data[(cat_data['RA'] > target[0] - 3) & (cat_data['RA'] < target[0] + 3) & (cat_data['DE'] > target[1] - 3) & (cat_data['DE'] < target[1] + 3)]
 ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTmag']/2.5))*2)
 ax[2].invert_xaxis()
+all_cat_quads = [tuple(x) for x in all_cat_quads]
+q, corners_cat = plots.makePolygons(all_cat_quads, cat_data)
+ax[2].add_collection(q)
 # plot the image superimposed on the catalogue in the correct WC
 # The extent should be in world coordinates. The corners of the image give the extent.
 if w != None:
