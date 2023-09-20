@@ -37,18 +37,27 @@ def load_catalogue():
     return cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian
 
 
+def load_image(file_name):
+    # loading in img_data, img_quads, img_codes
+    img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file_name)
+    img_quads = []
+    img_codes = []
+    return img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes
+
+
 print('------------------')
+
 # setting up stores for plotting
 all_img_quads = []
 all_cat_quads = []
 
+
 cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
-# creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin1.fits'
+# initialising time of solve
 t1 = time.time()
-img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
-img_quads = []
-img_codes = []
+# creating img_data, img_quads, img_codes
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin1.fits')
+
 
 N_max = np.min([70,len(img_data)])
 w = None
