@@ -249,7 +249,7 @@ cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # initialising time of solve
 t1 = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin3.fits')
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin9.fits')
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
@@ -319,6 +319,7 @@ for N in range(4,N_max):
     img_quads = []
     img_codes = []
 if len(w_store) == 0:
+    w = None
     print('no WCS found')
 
 t1 = time.time() - t1
@@ -358,8 +359,8 @@ ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTma
 ax[2].invert_xaxis()
 # plot the image superimposed on the catalogue in the correct WC
 # The extent should be in world coordinates. The corners of the image give the extent.
-w = w_store[0]
 if w != None:
+    w = w_store[0]
     # find the image corners in RA and DE
     width = np.shape(image)[0]
     height = np.shape(image)[1]
