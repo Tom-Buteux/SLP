@@ -44,6 +44,41 @@ def load_image(file_name):
     img_codes = []
     return img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes
 
+def check_img_codes_for_matches(img_codes, cat_tree, acceptable_distance):
+    """
+    Compares image hashcodes to catalog hashcodes and finds matches within a given distance.
+
+    Parameters:
+    ----------
+    img_codes : array-like
+        An array of hashcodes generated from the image's star patterns.
+
+    cat_tree : cKDTree object
+        A KD-Tree generated from catalog hashcodes, used for spatial searches.
+
+    acceptable_distance : float
+        The maximum distance within which two hashcodes are considered to be a match.
+
+    Returns:
+    -------
+    matching_img_indices : list of int
+        List of indices in img_codes that have a matching hashcode within acceptable_distance in cat_tree.
+
+    matching_cat_indices : list of int
+        List of indices in cat_tree that match with img_codes within acceptable_distance.
+
+    """
+    # compare the img codes to the cat_tree of codes
+    distances, indices = cat_tree.query(img_codes, k=1)
+    # return the indices of any hashcodes that have a distance < acceptable_distance
+    rows = np.array(np.where(distances < acceptable_distance)).ravel()
+    print(type(rows))
+    # find the indices of the matching hashcodes
+    matching_cat_indices = indices[rows]
+    matching_img_indices = rows.tolist()
+    return matching_img_indices, matching_cat_indices
+
+
 
 print('------------------')
 
@@ -58,33 +93,36 @@ t1 = time.time()
 # creating img_data, img_quads, img_codes
 img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin1.fits')
 
-
+# limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
+# creating a None-Object for WCS incase of failure
 w = None
+# setting intial found condition to false
 found = False
+
+# looping through N, adding one star at a time
 for N in range(4,N_max):
+    # if a verified match has been found, break the loop
     if found == True:
         break
+    # generate the quads and hashcodes for the image (only for the latest star added)
     img_quads, img_codes = img.generateQuads(N, img_data, image_size, img_quads, img_codes, image)
+    # printing the nyumber of NEW quads generated
     print('image quads: ', len(img_quads))
     # check if their are any quads
     if len(img_quads) == 0:
+        # if there are no new quads, continue
         continue
-    # check if the quads have any close matches in the index (cat_codes)
-    distances, indices = cat_tree.query(img_codes, k=1)
-
-    # return the indices of any hashcodes that have a distance < 0.1
-    rows = np.where(distances < 0.03)
-
-    # find the indices of the matching hashcodes
-    matching_cat_indices = indices[rows]
-    matching_img_indices = rows
+    
+    # find matching codes in the catalogue
+    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, 0.01)
 
 
-
+    # for each matching hashcode, convert the hashcode into a quad and then into a WCS object
     for i in range(len(matching_cat_indices)):
+        # taking each cat index and img index
         cat_index = matching_cat_indices[i]
-        img_index = matching_img_indices[0][i]
+        img_index = matching_img_indices[i]
         # convert the matching hashcodes into quads 
         cat_quad = cat_quads[cat_index]
         img_quad = img_quads[img_index]
