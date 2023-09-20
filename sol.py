@@ -171,10 +171,6 @@ for N in range(4,N_max):
         all_cat_quads.append(cat_quad)
         all_img_quads.append(img_quad)
 
-        #print cat_stars and img_stars
-        print('cat_stars: ', cat_stars)
-        print('img_stars: ', img_stars)
-
         # finding the ref and val stars for a WCS object
         img_coords, _, _ = utils.sortABCD(img_stars)
         cat_coords, _, _ = utils.sortABCD(cat_stars)
