@@ -209,6 +209,25 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
     return verified_matches
 
 
+def calculate_centre_and_roll(w,image):
+     # find the RA and DE of centre of the image
+    width = np.shape(image)[0]
+    height = np.shape(image)[1]
+    centre = w.all_pix2world(width/2, height/2, 1)
+
+    cd_matrix = w.wcs.cd
+
+    # Using arctan2 to get the angle
+    roll_angle_rad = np.arctan2(-cd_matrix[0, 1], cd_matrix[1, 1])
+
+    # Convert the angle to degrees
+    roll_angle_deg = np.rad2deg(roll_angle_rad)
+
+    # Adjust the angle to be in the range [0, 360]
+    roll_angle_deg = (roll_angle_deg + 180) % 360
+    print(img_quad)
+    print('centre: ', centre)
+    print('roll (degrees E of N): ', roll_angle_deg)
 
 
 
@@ -222,24 +241,27 @@ print('------------------')
 all_img_quads = []
 all_cat_quads = []
 
+# to store WCS objects
+w_store = []
+
 
 cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # initialising time of solve
 t1 = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin1.fits')
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin3.fits')
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
 # creating a None-Object for WCS incase of failure
 w = None
 # setting intial found condition to false
-found = False
+found = 0
 
 # looping through N, adding one star at a time
 for N in range(4,N_max):
     # if a verified match has been found, break the loop
-    if found == True:
+    if found == 3:
         break
     # generate the quads and hashcodes for the image (only for the latest star added)
     img_quads, img_codes = img.generateQuads(N, img_data, image_size, img_quads, img_codes, image)
@@ -252,8 +274,8 @@ for N in range(4,N_max):
         continue
     
     # find matching codes in the catalogue
-    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, 0.01)
-
+    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, 0.005)
+    print('matching codes found: ', len(matching_img_indices))
 
     # for each matching hashcode, convert the hashcode into a quad and then into a WCS object
     for i in range(len(matching_cat_indices)):
@@ -266,9 +288,7 @@ for N in range(4,N_max):
         cat_stars, cat_quad = index_to_coords(cat_index, cat_quads, cat_data)
         img_stars, img_quad = index_to_coords(img_index, img_quads, img_data)
 
-        # add the quads to the list of all quads for plotting
-        all_cat_quads.append(cat_quad)
-        all_img_quads.append(img_quad)
+        
 
         # using the pair of quads to create a WCS object
         w = coords_to_WCS(img_stars, cat_stars)
@@ -277,36 +297,28 @@ for N in range(4,N_max):
         # test the WCS object against the image
         number_of_matches = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10)
 
-        if number_of_matches >= 10:
-            # find the RA and DE of centre of the image
-            width = np.shape(image)[0]
-            height = np.shape(image)[1]
-            centre = w.all_pix2world(width/2, height/2, 1)
+        if number_of_matches >= 4:
+            # add the quads to the list of all quads for plotting
+            all_cat_quads.append(cat_quad)
+            all_img_quads.append(img_quad)
 
-            cd_matrix = w.wcs.cd
-
-            # Using arctan2 to get the angle
-            roll_angle_rad = np.arctan2(-cd_matrix[0, 1], cd_matrix[1, 1])
-
-            # Convert the angle to degrees
-            roll_angle_deg = np.rad2deg(roll_angle_rad)
-
-            # Adjust the angle to be in the range [0, 360]
-            roll_angle_deg = (roll_angle_deg + 180) % 360
-            print(img_quad)
-            print('centre: ', centre)
-            print('roll (degrees E of N): ', roll_angle_deg)
+            calculate_centre_and_roll(w,image)
+           
  
-            found = True
-            break
-        else:
-            w = None
+            found += 1
+            w_store.append(w)
 
+            if found == 3:
+                break
+            else:
+                continue
+        else:
+            print('WCS failed, ', number_of_matches, ' stars matched')
             continue
 
     img_quads = []
     img_codes = []
-if w == None:
+if len(w_store) == 0:
     print('no WCS found')
 
 t1 = time.time() - t1
@@ -346,6 +358,7 @@ ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTma
 ax[2].invert_xaxis()
 # plot the image superimposed on the catalogue in the correct WC
 # The extent should be in world coordinates. The corners of the image give the extent.
+w = w_store[0]
 if w != None:
     # find the image corners in RA and DE
     width = np.shape(image)[0]
