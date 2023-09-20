@@ -41,6 +41,14 @@ def sortABCD(coordinates):
     C = points[other_indices[0]]
     D = points[other_indices[1]]
 
+    # A is closer to the mean of C and D than B is
+    if np.linalg.norm(A - np.mean([C, D], axis=0)) > np.linalg.norm(B - np.mean([C, D], axis=0)):
+        A, B = B, A
+
+    # C is closer to A than D is
+    if np.linalg.norm(A - C) > np.linalg.norm(A - D):
+        C, D = D, C
+
     original_points = [A,B,C,D]
 
 
