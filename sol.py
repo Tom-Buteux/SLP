@@ -25,22 +25,26 @@ import img
 import utils
 import plots
 
+def load_catalogue():
+    # loading in cat_data, cat_quads, cat_codes
+    cat_data = pd.read_pickle('cat_data.pkl')
+    cat_quads = np.load('quads.npy', allow_pickle=True)
+    cat_codes = np.load('hashcodes.npy', allow_pickle=True)
+    cat_tree = cKDTree(cat_codes)
+    cat_tree_cartesian = cKDTree(cat_data[['x','y','z']].values)
+    print('catalogue data loaded successfully')
+    print(len(cat_quads), 'catalogue quads')
+    return cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian
+
+
 print('------------------')
 # setting up stores for plotting
 all_img_quads = []
 all_cat_quads = []
 
-# loading in cat_data, cat_quads, cat_codes
-cat_data = pd.read_pickle('cat_data.pkl')
-cat_quads = np.load('quads.npy', allow_pickle=True)
-cat_codes = np.load('hashcodes.npy', allow_pickle=True)
-cat_tree = cKDTree(cat_codes)
-cat_tree_cartesian = cKDTree(cat_data[['x','y','z']].values)
-print('catalogue data loaded successfully')
-print(len(cat_quads), 'catalogue quads')
-
+cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # creating img_data, img_quads, img_codes
-file = 'test_sets/60arcmin9.fits'
+file = 'test_sets/60arcmin1.fits'
 t1 = time.time()
 img_data, image_size, img_tree, image, target, initial_image  = img.imgSetUp(file)
 img_quads = []
@@ -198,9 +202,6 @@ ax[1].add_collection(q)
 plot2_data = cat_data[(cat_data['RA'] > target[0] - 3) & (cat_data['RA'] < target[0] + 3) & (cat_data['DE'] > target[1] - 3) & (cat_data['DE'] < target[1] + 3)]
 ax[2].scatter(plot2_data['RA'], plot2_data['DE'], s=10000/(10**(plot2_data['VTmag']/2.5))*2)
 ax[2].invert_xaxis()
-all_cat_quads = [tuple(x) for x in all_cat_quads]
-q, corners_cat = plots.makePolygons(all_cat_quads, cat_data)
-ax[2].add_collection(q)
 # plot the image superimposed on the catalogue in the correct WC
 # The extent should be in world coordinates. The corners of the image give the extent.
 if w != None:
