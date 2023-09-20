@@ -72,12 +72,46 @@ def check_img_codes_for_matches(img_codes, cat_tree, acceptable_distance):
     distances, indices = cat_tree.query(img_codes, k=1)
     # return the indices of any hashcodes that have a distance < acceptable_distance
     rows = np.array(np.where(distances < acceptable_distance)).ravel()
-    print(type(rows))
     # find the indices of the matching hashcodes
     matching_cat_indices = indices[rows]
     matching_img_indices = rows.tolist()
     return matching_img_indices, matching_cat_indices
 
+def index_to_coords(ind, quads, data):
+    """
+    Converts a list of indices to a list of coordinates.
+
+    Parameters:
+    ----------
+    ind : int
+        The index of the quad in the quads list.
+
+    data : pandas.DataFrame
+        The data source from which the indices were generated.
+
+    quads : list of tuples
+        A list of quads, where each quad is a tuple of indices.
+
+    Returns:
+    -------
+    coords : array-like
+        A list of coordinates corresponding to the indices.
+
+    quad : tuple
+        A tuple of indices corresponding to the stars in data
+
+    """
+    quad = quads[ind]
+    # try x and y coords or RA and DE coords
+    try:
+        coords = data.loc[list(quad),['RA','DE']].values
+    except:
+        coords = data.loc[list(quad),['x','y']].values
+    # raise an error if the coordinates are not found
+    if len(coords) == 0:
+        raise Exception('No coordinates found')
+    return coords, quad
+    
 
 
 print('------------------')
@@ -107,8 +141,9 @@ for N in range(4,N_max):
         break
     # generate the quads and hashcodes for the image (only for the latest star added)
     img_quads, img_codes = img.generateQuads(N, img_data, image_size, img_quads, img_codes, image)
+
     # printing the nyumber of NEW quads generated
-    print('image quads: ', len(img_quads))
+    print('image quads found: ', len(img_quads))
     # check if their are any quads
     if len(img_quads) == 0:
         # if there are no new quads, continue
@@ -120,21 +155,27 @@ for N in range(4,N_max):
 
     # for each matching hashcode, convert the hashcode into a quad and then into a WCS object
     for i in range(len(matching_cat_indices)):
+
         # taking each cat index and img index
         cat_index = matching_cat_indices[i]
         img_index = matching_img_indices[i]
-        # convert the matching hashcodes into quads 
-        cat_quad = cat_quads[cat_index]
-        img_quad = img_quads[img_index]
-        all_img_quads.append(img_quad)
-        all_cat_quads.append(cat_quad)
+
+
+
 
         # convert the quads into a list of stars
-        cat_stars = cat_data.loc[list(cat_quad),['RA','DE']].values
-        img_stars = img_data.loc[list(img_quad),['x','y']].values
+        cat_stars, cat_quad = index_to_coords(cat_index, cat_quads, cat_data)
+        img_stars, img_quad = index_to_coords(img_index, img_quads, img_data)
 
+        # add the quads to the list of all quads for plotting
+        all_cat_quads.append(cat_quad)
+        all_img_quads.append(img_quad)
 
-        # finding the ref and val stars
+        #print cat_stars and img_stars
+        print('cat_stars: ', cat_stars)
+        print('img_stars: ', img_stars)
+
+        # finding the ref and val stars for a WCS object
         img_coords, _, _ = utils.sortABCD(img_stars)
         cat_coords, _, _ = utils.sortABCD(cat_stars)
         img_A = img_coords[0]
@@ -147,7 +188,7 @@ for N in range(4,N_max):
         w.wcs.crpix = [img_A[0], img_A[1]]
         w.wcs.crval = [cat_A[0], cat_A[1]]
         w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
-
+        # THIS SECTION REGARDS THE CREATION OF THE CD MATRIX
         # calculate the scale
         img_scale = np.linalg.norm(np.subtract(img_B, img_A))
         cat_scale = np.linalg.norm(np.subtract(cat_B, cat_A))
