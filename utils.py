@@ -204,6 +204,8 @@ def find_orthogonal_set(vec):
     # Find another vector that is orthogonal to both `vec` and `ortho1`
     ortho2 = np.cross(vec, ortho1)
     ortho2 = ortho2 / np.linalg.norm(ortho2)  # normalize
+
+
     
     return ortho1, ortho2
 
@@ -218,16 +220,27 @@ def project_point_to_plane(point, n): # n is the normal of the plane
     return projected_point
 
 def project_point_to_sphere(point,n): # n is the normal of the plane
-    # find the tangential point in plane coords (u,v)
-    N = np.array([0,0])
-    # find the vector between the point and the tangential point
-    V = np.subtract(point, N)
-    # convert V into a normal vector
-    V = V / np.linalg.norm(V)
-    # find the point on the sphere
-    S = np.add(N, np.multiply(1,V))
-    # convert S into a normal vector
-    S = S / np.linalg.norm(S)
-    return S
+    # find the orthogonal vectors to the normal vector
+    u, v = find_orthogonal_set(n)
+    # find the x,y,z coordinates of the point
+    point = np.multiply(point[0],u) + np.multiply(point[1],v)
+    # add the normal vector to the point
+    point = point + n
+    # normalize the point
+    point = point / np.linalg.norm(point)
+    return point
+
+def convert_cartesian_to_RA_DEC(point):
+    # convert the point to spherical coordinates
+    dec = np.arcsin(point[2])
+    ra = np.arctan2(point[1],point[0])
+
+    # convert the ra and dec to degrees
+    dec = np.degrees(dec)
+    if ra < 0:
+        ra = 2*np.pi+ra
+    ra = np.degrees(ra)
+    return ra, dec
+    
 
 

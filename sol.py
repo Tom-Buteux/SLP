@@ -110,7 +110,7 @@ def index_to_cart_coords(ind, quads, data):
         plane_normal = utils.centroid(coords) # this is a normal vector to the hypothesis image plane
 
         # use the plane normal to project points onto the plane
-        projected_quad = np.array([project_point_to_plane(point, plane_normal) for point in coords])
+        projected_quad = np.array([utils.project_point_to_plane(point, plane_normal) for point in coords])
         # finding the orthogonal set of the plane normal
         u,v = utils.find_orthogonal_set(plane_normal)
         # find the angle that u makes with the x-axis
@@ -213,6 +213,7 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
 
     # find the 'x','y','z' centroid of the cat quad
     cat_centroid = utils.centroid(cat_data.loc[list(cat_quad),['x','y','z']].values)
+    normal_vector = cat_centroid
     # search the area around the quad centroid for stars within the FOV of the image
     ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(image_FOV)/2))
     # convert the indices into a list of stars
@@ -231,16 +232,19 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
     ind2 = img_tree.query_ball_point(cat_pix, r = threshold) # ind2 is the iloc indicies of the stars in img_data that are within threshold of the cat_quad
     # find the number of non-empty lists
     verified_matches = np.count_nonzero(ind2)
-    return verified_matches
+    return verified_matches, normal_vector
 
 
-def calculate_centre_and_roll(w,image):
+def calculate_centre_and_roll(w,image,n):
      # find the RA and DE of centre of the image
     width = np.shape(image)[0]
     height = np.shape(image)[1]
     centre = w.all_pix2world(width/2, height/2, 1)
-    centre = utils.project_point_to_sphere(centre)
-    # to find the centre in x,y,z i can just normalise the centre
+    print('centre in plane: ', centre)
+    centre = utils.project_point_to_sphere(centre,n)
+    print('centre in cartesian: ', centre)
+    centre = utils.convert_cartesian_to_RA_DEC(centre)
+    print('centre in RA DEC: ', centre)
     cd_matrix = w.wcs.cd
 
     # Using arctan2 to get the angle
@@ -252,7 +256,7 @@ def calculate_centre_and_roll(w,image):
     # Adjust the angle to be in the range [0, 360]
     roll_angle_deg = (roll_angle_deg + 180) % 360
     print(img_quad)
-    print('centre: ', centre)
+
     print('roll (degrees E of N): ', roll_angle_deg)
 
 
@@ -275,7 +279,7 @@ cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # initialising time of solve
 t1 = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin1.fits')
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin2.fits')
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
@@ -329,14 +333,14 @@ for N in range(4,N_max):
 
 
         # test the WCS object against the image
-        number_of_matches = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10)
+        number_of_matches,normal = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10)
 
         if number_of_matches >= 4:
             # add the quads to the list of all quads for plotting
             all_cat_quads.append(cat_quad)
             all_img_quads.append(img_quad)
 
-            calculate_centre_and_roll(w,image)
+            calculate_centre_and_roll(w,image,normal)
            
  
             found += 1
