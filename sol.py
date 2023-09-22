@@ -216,7 +216,7 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold, im
     normal_vector = cat_centroid
     # search the area around the quad centroid for stars within the FOV of the image
     ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(image_FOV)/2))
-    print('number of neighbours found: ', len(ind))
+
     plane_normal = cat_centroid # this is a normal vector to the hypothesis image plane
     # finding the orthogonal set of the plane normal
     u,v = utils.find_orthogonal_set(plane_normal)
@@ -236,8 +236,7 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold, im
     img_quad_xy = np.array(img_quad_xy)
     cat_quad_xy = w.all_world2pix(cat_quad_uv,1)
     cat_test_xy = w.all_world2pix(cat_test_uv,1)
-    print('shape of cat_quad_uv: ', np.shape(cat_quad_uv))
-    print('shape of cat_test_xy: ', np.shape(cat_test_xy))
+
 
     
     
@@ -245,7 +244,7 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold, im
     img_AB = np.subtract(img_quad_xy[1], img_quad_xy[0])
     # find the angle from cat_A to img_A
     theta = np.arctan2(cat_AB[0]*img_AB[1] - cat_AB[1]*img_AB[0], cat_AB[0]*img_AB[0] + cat_AB[1]*img_AB[1])
-    print('theta: ', np.degrees(theta))
+
     cat_quad_xy = np.array(utils.rotate_2d_points_around_point(cat_quad_xy, theta, w.wcs.crpix))
     cat_test_xy = np.array(utils.rotate_2d_points_around_point(cat_test_xy, theta, w.wcs.crpix))
     # check to see how many of the stars are in the image (threshold variable)
@@ -276,9 +275,9 @@ def calculate_centre_and_roll(w,image,n):
     width = np.shape(image)[0]
     height = np.shape(image)[1]
     centre = w.all_pix2world(width/2, height/2, 1)
-    print('centre in plane: ', centre)
+
     centre = utils.project_point_to_sphere(centre,n)
-    print('centre in cartesian: ', centre)
+
     centre = utils.convert_cartesian_to_RA_DEC(centre)
     print('centre in RA DEC: ', centre)
     cd_matrix = w.wcs.cd
@@ -291,7 +290,6 @@ def calculate_centre_and_roll(w,image,n):
 
     # Adjust the angle to be in the range [0, 360]
     roll_angle_deg = (roll_angle_deg + 180) % 360
-    print(img_quad)
 
     print('roll (degrees E of N): ', roll_angle_deg)
 
@@ -315,7 +313,7 @@ cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # initialising time of solve
 t1 = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin8.fits')
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin9.fits')
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
@@ -340,7 +338,7 @@ for N in range(4,N_max):
         continue
     
     # find matching codes in the catalogue
-    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, 0.005)
+    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, 0.01)
     print('matching codes found: ', len(matching_img_indices))
 
     # for each matching hashcode, convert the hashcode into a quad and then into a WCS object
@@ -360,11 +358,8 @@ for N in range(4,N_max):
         w = coords_to_WCS(img_stars, cat_stars)
 
         # test the WCS object against the image
-        number_of_matches,normal,cat_test_xy = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10,img_stars)
-        print('cat_test_xy shape', np.shape(cat_test_xy))
-        print('first 5 cat_test_xy:\n ', cat_test_xy[:5])
-        print('cat_test_xy type: ', type(cat_test_xy))
-
+        number_of_matches,normal,cat_test_xy = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 5,img_stars)
+        """
         plt.imshow(image, cmap='gray')
         plt.plot(img_data['x'][:N], img_data['y'][:N], 'ro', fillstyle='none')
         plt.plot(cat_test_xy[:,0], cat_test_xy[:,1], 'go', fillstyle='none')
@@ -372,8 +367,9 @@ for N in range(4,N_max):
         plt.xlim(0, image_size)
         plt.ylim(0, image_size)
         plt.show()
+        """
 
-        if number_of_matches >= 4:
+        if number_of_matches >= 11:
             # add the quads to the list of all quads for plotting
             all_cat_quads.append(cat_quad)
             all_img_quads.append(img_quad)
