@@ -77,7 +77,8 @@ def check_img_codes_for_matches(img_codes, cat_tree, acceptable_distance):
     matching_img_indices = rows.tolist()
     return matching_img_indices, matching_cat_indices
 
-def index_to_coords(ind, quads, data):
+
+def index_to_cart_coords(ind, quads, data):
     """
     Converts a list of indices to a list of coordinates.
 
@@ -104,7 +105,20 @@ def index_to_coords(ind, quads, data):
     quad = quads[ind]
     # try x and y coords or RA and DE coords
     try:
-        coords = data.loc[list(quad),['RA','DE']].values
+        coords = data.loc[list(quad),['x','y','z']].values
+        # find the centroid of the quad
+        plane_normal = utils.centroid(coords) # this is a normal vector to the hypothesis image plane
+
+        # use the plane normal to project points onto the plane
+        projected_quad = np.array([project_point_to_plane(point, plane_normal) for point in coords])
+        # finding the orthogonal set of the plane normal
+        u,v = utils.find_orthogonal_set(plane_normal)
+        # find the angle that u makes with the x-axis
+        
+        # find the coordinates of the projected quad in the new coordinate system
+        coords = [[np.dot(point, u), np.dot(point, v)] for point in projected_quad] 
+
+
     except:
         coords = data.loc[list(quad),['x','y']].values
     # raise an error if the coordinates are not found
@@ -143,7 +157,7 @@ def coords_to_WCS(img_coords, cat_coords):
     w = WCS(naxis=2)
     w.wcs.crpix = [img_A[0], img_A[1]]
     w.wcs.crval = [cat_A[0], cat_A[1]]
-    w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    w.wcs.ctype = ["X", "Y"]
     # THIS SECTION REGARDS THE CREATION OF THE CD MATRIX
     # calculate the scale
     img_scale = np.linalg.norm(np.subtract(img_B, img_A))
@@ -153,7 +167,9 @@ def coords_to_WCS(img_coords, cat_coords):
     # calculate the rotation matrix
     img_AB = np.subtract(img_B, img_A)
     cat_AB = np.subtract(cat_B, cat_A)
-    theta = np.arccos(np.dot(img_AB, cat_AB) / (np.linalg.norm(img_AB) * np.linalg.norm(cat_AB)))
+    theta = np.arccos(np.dot(img_AB, cat_AB) / (np.linalg.norm(img_AB) * np.linalg.norm(cat_AB))) + np.radians(90)
+
+
 
     # calculate the CD matrix
     cd11 = scale * np.cos(theta)
@@ -161,6 +177,7 @@ def coords_to_WCS(img_coords, cat_coords):
     cd21 = scale * np.sin(theta)
     cd22 = scale * np.cos(theta)
     w.wcs.cd = np.array([[cd11, cd12], [cd21, cd22]])
+    
     return w
 
 def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
@@ -199,7 +216,15 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
     # search the area around the quad centroid for stars within the FOV of the image
     ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(image_FOV)/2))
     # convert the indices into a list of stars
-    cat_test = cat_data.loc[list(cat_data.iloc[ind].index),['RA','DE']].values
+    cat_test = cat_data.loc[list(cat_data.iloc[ind].index),['x','y','z']].values
+    plane_normal = cat_centroid # this is a normal vector to the hypothesis image plane
+    # use the plane normal to project points onto the plane
+    projected_quad = np.array([utils.project_point_to_plane(point, plane_normal) for point in cat_test])
+    # finding the orthogonal set of the plane normal
+    u,v = utils.find_orthogonal_set(plane_normal)
+    # find the coordinates of the projected quad in the new coordinate system
+    cat_test= [[np.dot(point, u), np.dot(point, v)] for point in projected_quad] 
+    """ Here is where potentially i may have to rotate the cat_test by the angle between the x-axis and the u-axis"""
     # convert the list of stars into pixel coordinates
     cat_pix = w.all_world2pix(cat_test,1)
     # check to see how many of the stars are in the image (threshold variable)
@@ -214,7 +239,8 @@ def calculate_centre_and_roll(w,image):
     width = np.shape(image)[0]
     height = np.shape(image)[1]
     centre = w.all_pix2world(width/2, height/2, 1)
-
+    centre = utils.project_point_to_sphere(centre)
+    # to find the centre in x,y,z i can just normalise the centre
     cd_matrix = w.wcs.cd
 
     # Using arctan2 to get the angle
@@ -249,7 +275,7 @@ cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # initialising time of solve
 t1 = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin2.fits')
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin1.fits')
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
@@ -285,13 +311,21 @@ for N in range(4,N_max):
         img_index = matching_img_indices[i]
 
         # convert the quads into a list of stars
-        cat_stars, cat_quad = index_to_coords(cat_index, cat_quads, cat_data)
-        img_stars, img_quad = index_to_coords(img_index, img_quads, img_data)
+        cat_stars, cat_quad = index_to_cart_coords(cat_index, cat_quads, cat_data) # this has been changed to ouptut the cat_stars as a projection onto a 2D plane
+        img_stars, img_quad = index_to_cart_coords(img_index, img_quads, img_data)
 
         
 
         # using the pair of quads to create a WCS object
         w = coords_to_WCS(img_stars, cat_stars)
+
+        converted_cat_coords = w.all_world2pix(cat_stars,1)
+        # plot the image with the converted catalogue stars overlayed
+        plt.imshow(image, cmap='gray')
+        plt.plot(img_data['x'][:N], img_data['y'][:N], 'ro', fillstyle='none')
+        plt.plot(converted_cat_coords[:,0], converted_cat_coords[:,1], 'go', fillstyle='none')
+        plt.show()
+
 
 
         # test the WCS object against the image

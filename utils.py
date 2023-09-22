@@ -206,3 +206,28 @@ def find_orthogonal_set(vec):
     ortho2 = ortho2 / np.linalg.norm(ortho2)  # normalize
     
     return ortho1, ortho2
+
+def project_point_to_plane(point, n): # n is the normal of the plane
+    # find the distance from the point to the plane
+    # vec is the vector from the point on plane to the point
+    vec = np.subtract(point, np.array([0,0,0]))
+    # d is the distance from the point to the plane
+    d = np.dot(vec, n)
+    # project the point onto the plane
+    projected_point = np.subtract(point, np.multiply(d,n))
+    return projected_point
+
+def project_point_to_sphere(point,n): # n is the normal of the plane
+    # find the tangential point in plane coords (u,v)
+    N = np.array([0,0])
+    # find the vector between the point and the tangential point
+    V = np.subtract(point, N)
+    # convert V into a normal vector
+    V = V / np.linalg.norm(V)
+    # find the point on the sphere
+    S = np.add(N, np.multiply(1,V))
+    # convert S into a normal vector
+    S = S / np.linalg.norm(S)
+    return S
+
+
