@@ -180,7 +180,7 @@ def coords_to_WCS(img_coords, cat_coords):
     
     return w
 
-def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
+def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold, img_quad_xy):
     """
     Tests a WCS object against the image to see if the WCS object is a good fit.
 
@@ -216,23 +216,59 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold):
     normal_vector = cat_centroid
     # search the area around the quad centroid for stars within the FOV of the image
     ind = cat_tree_cartesian.query_ball_point(cat_centroid, r = 2 * np.sin(np.radians(image_FOV)/2))
-    # convert the indices into a list of stars
-    cat_test = cat_data.loc[list(cat_data.iloc[ind].index),['x','y','z']].values
+    print('number of neighbours found: ', len(ind))
     plane_normal = cat_centroid # this is a normal vector to the hypothesis image plane
-    # use the plane normal to project points onto the plane
-    projected_quad = np.array([utils.project_point_to_plane(point, plane_normal) for point in cat_test])
     # finding the orthogonal set of the plane normal
     u,v = utils.find_orthogonal_set(plane_normal)
-    # find the coordinates of the projected quad in the new coordinate system
-    cat_test= [[np.dot(point, u), np.dot(point, v)] for point in projected_quad] 
-    """ Here is where potentially i may have to rotate the cat_test by the angle between the x-axis and the u-axis"""
-    # convert the list of stars into pixel coordinates
-    cat_pix = w.all_world2pix(cat_test,1)
+    """ rotate the cat_pix to match the image """
+    cat_test_xyz = cat_data.loc[cat_data.iloc[ind].index,['x','y','z']].values
+    cat_quad_xyz = cat_data.loc[list(cat_quad),['x','y','z']].values
+    cat_quad_proj = [utils.project_point_to_plane(point, plane_normal) for point in cat_quad_xyz]
+    cat_test_proj = [utils.project_point_to_plane(point, plane_normal) for point in cat_test_xyz]
+    cat_quad_uv =  [[np.dot(point, u), np.dot(point, v)] for point in cat_quad_proj]
+    cat_test_uv =  [[np.dot(point, u), np.dot(point, v)] for point in cat_test_proj]
+    img_quad_xy = img_quad_xy
+    # find A for both the img and cat quads
+    cat_quad_uv,_ = utils.findABCD(cat_quad_uv)
+    img_quad_xy,_ = utils.findABCD(img_quad_xy)
+    # convert to arrays
+    cat_quad_uv = np.array(cat_quad_uv)
+    img_quad_xy = np.array(img_quad_xy)
+    cat_quad_xy = w.all_world2pix(cat_quad_uv,1)
+    cat_test_xy = w.all_world2pix(cat_test_uv,1)
+    print('shape of cat_quad_uv: ', np.shape(cat_quad_uv))
+    print('shape of cat_test_xy: ', np.shape(cat_test_xy))
+
+    
+    
+    cat_AB = np.subtract(cat_quad_xy[1], cat_quad_xy[0])
+    img_AB = np.subtract(img_quad_xy[1], img_quad_xy[0])
+    # find the angle from cat_A to img_A
+    theta = np.arctan2(cat_AB[0]*img_AB[1] - cat_AB[1]*img_AB[0], cat_AB[0]*img_AB[0] + cat_AB[1]*img_AB[1])
+    print('theta: ', np.degrees(theta))
+    cat_quad_xy = np.array(utils.rotate_2d_points_around_point(cat_quad_xy, theta, w.wcs.crpix))
+    cat_test_xy = np.array(utils.rotate_2d_points_around_point(cat_test_xy, theta, w.wcs.crpix))
     # check to see how many of the stars are in the image (threshold variable)
-    ind2 = img_tree.query_ball_point(cat_pix, r = threshold) # ind2 is the iloc indicies of the stars in img_data that are within threshold of the cat_quad
+    ind2 = img_tree.query_ball_point(cat_test_xy, r = threshold) # ind2 is the iloc indicies of the stars in img_data that are within threshold of the cat_quad
     # find the number of non-empty lists
     verified_matches = np.count_nonzero(ind2)
-    return verified_matches, normal_vector
+    """
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+    ax[0].imshow(image, cmap='gray')
+    ax[0].scatter(img_quad_xy[:,0], img_quad_xy[:,1], s=100, c=['r','g','b','y'])
+    ax[0].set_title('Image')
+    ax[0].set_xlabel('x')
+    ax[0].set_ylabel('y')
+    ax[1].imshow(image, cmap='gray')
+    ax[1].scatter(cat_quad_xy[:,0], cat_quad_xy[:,1], s=100, c=['r','g','b','y'])
+    ax[1].set_title('Catalogue')
+
+    ax[1].set_xlabel('u')
+    ax[1].set_ylabel('v')
+    plt.show()
+    """
+
+    return verified_matches, normal_vector, cat_test_xy
 
 
 def calculate_centre_and_roll(w,image,n):
@@ -279,7 +315,7 @@ cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
 # initialising time of solve
 t1 = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin2.fits')
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin8.fits')
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
@@ -323,17 +359,19 @@ for N in range(4,N_max):
         # using the pair of quads to create a WCS object
         w = coords_to_WCS(img_stars, cat_stars)
 
-        converted_cat_coords = w.all_world2pix(cat_stars,1)
-        # plot the image with the converted catalogue stars overlayed
+        # test the WCS object against the image
+        number_of_matches,normal,cat_test_xy = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10,img_stars)
+        print('cat_test_xy shape', np.shape(cat_test_xy))
+        print('first 5 cat_test_xy:\n ', cat_test_xy[:5])
+        print('cat_test_xy type: ', type(cat_test_xy))
+
         plt.imshow(image, cmap='gray')
         plt.plot(img_data['x'][:N], img_data['y'][:N], 'ro', fillstyle='none')
-        plt.plot(converted_cat_coords[:,0], converted_cat_coords[:,1], 'go', fillstyle='none')
+        plt.plot(cat_test_xy[:,0], cat_test_xy[:,1], 'go', fillstyle='none')
+        # limit the plot to the image size
+        plt.xlim(0, image_size)
+        plt.ylim(0, image_size)
         plt.show()
-
-
-
-        # test the WCS object against the image
-        number_of_matches,normal = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 10)
 
         if number_of_matches >= 4:
             # add the quads to the list of all quads for plotting

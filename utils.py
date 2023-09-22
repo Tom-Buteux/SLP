@@ -17,7 +17,15 @@ def findABCD(coordinates):
     C = points[other_indices[0]]
     D = points[other_indices[1]]
 
-    return A, B, C, D, np.max(distances)
+    # A is closer to the mean of C and D than B is
+    if np.linalg.norm(A - np.mean([C, D], axis=0)) > np.linalg.norm(B - np.mean([C, D], axis=0)):
+        A, B = B, A
+
+    # C is closer to A than D is
+    if np.linalg.norm(A - C) > np.linalg.norm(A - D):
+        C, D = D, C
+
+    return [A, B, C, D], np.max(distances)
 
 
 
@@ -241,6 +249,42 @@ def convert_cartesian_to_RA_DEC(point):
         ra = 2*np.pi+ra
     ra = np.degrees(ra)
     return ra, dec
+
+def rotate_2d_points_around_point(points, angle, pivot):
+    """
+    Rotate 2D points around a pivot point in an anti-clockwise direction.
+
+    Parameters:
+    points (list): List of points as numpy arrays ([x, y])
+    angle (float): Angle of rotation in radians.
+    pivot (list): The point around which to rotate ([x, y])
+
+    Returns:
+    list: List of rotated points as numpy arrays.
+    """
+    
+    # Define the 2D rotation matrix for anti-clockwise rotation
+    rotation_matrix = np.array([
+        [np.cos(angle), -np.sin(angle)],
+        [np.sin(angle), np.cos(angle)]
+    ])
+    
+    pivot = np.array(pivot)  # Convert pivot to numpy array
+    rotated_points = []  # List to store rotated points
+
+    for point in points:
+        point = np.array(point)  # Convert point to numpy array
+        translated_point = point - pivot  # Translate to origin (relative to pivot)
+        
+        # Perform anti-clockwise rotation using the rotation matrix
+        rotated_translated_point = np.dot(rotation_matrix, translated_point)
+        
+        # Translate back to original position (relative to pivot)
+        rotated_point = rotated_translated_point + pivot
+        
+        rotated_points.append(rotated_point)  # Add to list of rotated points
+
+    return rotated_points
     
 
 

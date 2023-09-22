@@ -174,7 +174,7 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
             continue
         # check if the scale of the quad is within 0.35 and 0.25 of the image size
 
-        A,B,C,D,scale = utils.findABCD(current_data.loc[quad,['x','y']].values)
+        [A,B,C,D],scale = utils.findABCD(current_data.loc[quad,['x','y']].values)
         if (scale > 0.35*image_size) or (scale < 0.05*image_size):
 
             continue
