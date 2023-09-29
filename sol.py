@@ -360,7 +360,7 @@ diagnostics.loc[diagnostics.index == 'Load Catalogue', 'Times Run'] += 1
 t1 = time.time()
 t_load_img = time.time()
 # creating img_data, img_quads, img_codes
-image_file = 'test_sets/60arcmin2.fits'
+image_file = 'test_sets/60arcmin10.fits'
 img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image(image_file)
 time_to_load_img = time.time() - t_load_img
 # adding these times to the diagnostics
