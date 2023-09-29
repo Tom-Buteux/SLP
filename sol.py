@@ -292,11 +292,12 @@ def calculate_centre_and_roll(w,image,n):
     roll_angle_deg = (roll_angle_deg + 180) % 360
 
     print('roll (degrees E of N): ', roll_angle_deg)
+    return centre, roll_angle_deg
 
 
 
 
-
+#
 
 
 print('------------------')
@@ -305,15 +306,66 @@ print('------------------')
 all_img_quads = []
 all_cat_quads = []
 
+import pandas as pd
+
+# Create a list to hold each row as a DataFrame
+rows_list = [
+    {'Name': 'Load Catalogue', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Load Image', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Generate Image Quads', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Match Codes', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Convert Index to Coords', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Convert to WCS', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Test WCS', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Calculate Results', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Total Time', 'Value': 0, 'Times Run': 0},
+    {'Name': 'N', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Found', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Image Name', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Image_FOV', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Pixel Threshold', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Match Tolerance', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Target RA', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Target DE', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Error RA', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Error DE', 'Value': 0, 'Times Run': 0},
+
+]
+
+# Convert each dictionary in rows_list to a DataFrame and concatenate them
+diagnostics = pd.concat([pd.DataFrame([i]) for i in rows_list], ignore_index=True)
+
+
+# Set 'Name' as the index
+diagnostics.set_index('Name', inplace=True)
+print(diagnostics.index)
+# Show the DataFrame
+print(diagnostics)
+
+
+
+
 # to store WCS objects
 w_store = []
 
-
+t_load_cat = time.time()
 cat_data, cat_quads, cat_codes, cat_tree, cat_tree_cartesian = load_catalogue()
+time_to_load_cat = time.time() - t_load_cat
+# adding these times to the diagnostics
+diagnostics.loc[diagnostics.index == 'Load Catalogue', 'Value'] += time_to_load_cat
+diagnostics.loc[diagnostics.index == 'Load Catalogue', 'Times Run'] += 1
+
+
 # initialising time of solve
 t1 = time.time()
+t_load_img = time.time()
 # creating img_data, img_quads, img_codes
-img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image('test_sets/60arcmin9.fits')
+image_file = 'test_sets/60arcmin10.fits'
+img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image(image_file)
+time_to_load_img = time.time() - t_load_img
+# adding these times to the diagnostics
+diagnostics.loc[diagnostics.index == 'Load Image', 'Value'] += time_to_load_img
+diagnostics.loc[diagnostics.index == 'Load Image', 'Times Run'] += 1
 
 # limiting N to eaither the number of stars detected by blob detection or an input value
 N_max = np.min([70,len(img_data)])
@@ -327,9 +379,13 @@ for N in range(4,N_max):
     # if a verified match has been found, break the loop
     if found == 3:
         break
+    t_loop = time.time()
     # generate the quads and hashcodes for the image (only for the latest star added)
     img_quads, img_codes = img.generateQuads(N, img_data, image_size, img_quads, img_codes, image)
-
+    time_to_generate_img_quads = time.time() - t_loop
+    # adding these times to the diagnostics
+    diagnostics.loc[diagnostics.index == 'Generate Image Quads', 'Value'] += time_to_generate_img_quads
+    diagnostics.loc[diagnostics.index == 'Generate Image Quads', 'Times Run'] += 1
     # printing the nyumber of NEW quads generated
     print('image quads found: ', len(img_quads))
     # check if their are any quads
@@ -338,9 +394,14 @@ for N in range(4,N_max):
         continue
     
     # find matching codes in the catalogue
-    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, 0.01)
-    print('matching codes found: ', len(matching_img_indices))
-
+    t_match = time.time()
+    match_tolerance = 0.01
+    matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, match_tolerance)
+    time_to_match_codes = time.time() - t_match
+    # adding these times to the diagnostics
+    diagnostics.loc[diagnostics.index == 'Match Codes', 'Value'] += time_to_match_codes
+    diagnostics.loc[diagnostics.index == 'Match Codes', 'Times Run'] += 1
+    
     # for each matching hashcode, convert the hashcode into a quad and then into a WCS object
     for i in range(len(matching_cat_indices)):
 
@@ -348,17 +409,36 @@ for N in range(4,N_max):
         cat_index = matching_cat_indices[i]
         img_index = matching_img_indices[i]
 
+        t_convert = time.time()
         # convert the quads into a list of stars
         cat_stars, cat_quad = index_to_cart_coords(cat_index, cat_quads, cat_data) # this has been changed to ouptut the cat_stars as a projection onto a 2D plane
         img_stars, img_quad = index_to_cart_coords(img_index, img_quads, img_data)
+        time_to_convert_index_to_coords = time.time() - t_convert
+        # adding these times to the diagnostics
+        diagnostics.loc[diagnostics.index == 'Convert Index to Coords', 'Value'] += time_to_convert_index_to_coords
+        diagnostics.loc[diagnostics.index == 'Convert Index to Coords', 'Times Run'] += 1
+
 
         
-
+        t_WCS = time.time()
         # using the pair of quads to create a WCS object
         w = coords_to_WCS(img_stars, cat_stars)
+        time_to_convert_to_WCS = time.time() - t_WCS
+        # adding these times to the diagnostics
+        diagnostics.loc[diagnostics.index == 'Convert to WCS', 'Value'] += time_to_convert_to_WCS
+        diagnostics.loc[diagnostics.index == 'Convert to WCS', 'Times Run'] += 1
+
 
         # test the WCS object against the image
-        number_of_matches,normal,cat_test_xy = test_WCS(cat_quad, cat_data, cat_tree_cartesian, 1, w, 5,img_stars)
+        t_test = time.time()
+        image_FOV = 1
+        pixel_threshold = 5
+        number_of_matches,normal,cat_test_xy = test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV=image_FOV, w=w, threshold=pixel_threshold, img_quad_xy=img_stars)
+        time_to_test_WCS = time.time() - t_test
+        # adding these times to the diagnoistics
+        diagnostics.loc[diagnostics.index == 'Test WCS', 'Value'] += time_to_test_WCS
+        diagnostics.loc[diagnostics.index == 'Test WCS', 'Times Run'] += 1
+
         """
         plt.imshow(image, cmap='gray')
         plt.plot(img_data['x'][:N], img_data['y'][:N], 'ro', fillstyle='none')
@@ -373,9 +453,13 @@ for N in range(4,N_max):
             # add the quads to the list of all quads for plotting
             all_cat_quads.append(cat_quad)
             all_img_quads.append(img_quad)
+            t_calc = time.time()
+            centre,roll = calculate_centre_and_roll(w,image,normal)
+            time_to_calculate_results = time.time() - t_calc
+            # adding these times to the diagnostics
+            diagnostics.loc[diagnostics.index == 'Calculate Results', 'Value'] += time_to_calculate_results
+            diagnostics.loc[diagnostics.index == 'Calculate Results', 'Times Run'] += 1
 
-            calculate_centre_and_roll(w,image,normal)
-           
  
             found += 1
             w_store.append(w)
@@ -452,7 +536,8 @@ if w != None:
     ax[2].set_ylim(target[1] - 2, target[1] + 2)
 
 
-
+error_RA = np.abs(target[0] - centre[0])
+error_DE = np.abs(target[1] - centre[1])
 
 
 
@@ -463,5 +548,35 @@ ax[2].add_collection(q)
 
 ax[2].set_title('Image with WCS')
 plt.show()
+
+# add the total time taken to the diagnostics
+diagnostics.loc[diagnostics.index == 'Total Time', 'Value'] += t1
+diagnostics.loc[diagnostics.index == 'Total Time', 'Times Run'] += 1
+
+# adding key values to the diagnostics
+diagnostics.loc[diagnostics.index == 'N', 'Value'] = N
+diagnostics.loc[diagnostics.index == 'Found', 'Value'] = found
+# adding the image name to the diagnostics
+diagnostics.loc[diagnostics.index == 'Image Name', 'Value'] = image_file
+diagnostics.loc[diagnostics.index == 'Image_FOV', 'Value'] = image_FOV
+diagnostics.loc[diagnostics.index == 'Pixel Threshold', 'Value'] = pixel_threshold
+diagnostics.loc[diagnostics.index == 'Match Tolerance', 'Value'] = match_tolerance
+diagnostics.loc[diagnostics.index == 'Target RA', 'Value'] = target[0]
+diagnostics.loc[diagnostics.index == 'Target DE', 'Value'] = target[1]
+diagnostics.loc[diagnostics.index == 'Error RA', 'Value'] = error_RA
+diagnostics.loc[diagnostics.index == 'Error DE', 'Value'] = error_DE
+
+
+
+
+
+
+print(diagnostics)
+#append the values of the time_frame to a csv file
+values = diagnostics['Value'].values
+# append to row of csv file
+with open('diagnostics.csv', 'a') as f:
+    np.savetxt(f, values.reshape(1, len(values)), delimiter=',', fmt='%s')
+
 
 
