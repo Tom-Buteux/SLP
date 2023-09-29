@@ -25,6 +25,27 @@ import img
 import utils
 import plots
 
+import argparse
+
+# Initialize argument parser
+parser = argparse.ArgumentParser(description="Plate Solving Software")
+
+# Define arguments
+parser.add_argument("-n", "--image_number", type=int, help="The image number for the file you want to access", required=True)
+parser.add_argument("-f", "--fov", type=float, help="Field of view of the image", required=True)
+parser.add_argument("-p", "--pixel_threshold", type=float, help="Pixel threshold", required=True)
+parser.add_argument("-m", "--match_tolerance", type=float, help="Match tolerance", required=True)
+
+# Parse arguments
+args = parser.parse_args()
+
+# Use arguments in your code
+image_file = f"test_sets/60arcmin{args.image_number}.fits"
+image_FOV = args.fov
+pixel_threshold = args.pixel_threshold
+match_tolerance = args.match_tolerance
+
+
 def load_catalogue():
     # loading in cat_data, cat_quads, cat_codes
     cat_data = pd.read_pickle('cat_data.pkl')
@@ -338,9 +359,7 @@ diagnostics = pd.concat([pd.DataFrame([i]) for i in rows_list], ignore_index=Tru
 
 # Set 'Name' as the index
 diagnostics.set_index('Name', inplace=True)
-print(diagnostics.index)
-# Show the DataFrame
-print(diagnostics)
+
 
 
 
@@ -360,7 +379,7 @@ diagnostics.loc[diagnostics.index == 'Load Catalogue', 'Times Run'] += 1
 t1 = time.time()
 t_load_img = time.time()
 # creating img_data, img_quads, img_codes
-image_file = 'test_sets/60arcmin10.fits'
+
 img_data, image_size, img_tree, image, target, initial_image, img_quads, img_codes = load_image(image_file)
 time_to_load_img = time.time() - t_load_img
 # adding these times to the diagnostics
@@ -395,7 +414,7 @@ for N in range(4,N_max):
     
     # find matching codes in the catalogue
     t_match = time.time()
-    match_tolerance = 0.01
+
     matching_img_indices, matching_cat_indices = check_img_codes_for_matches(img_codes, cat_tree, match_tolerance)
     time_to_match_codes = time.time() - t_match
     # adding these times to the diagnostics
@@ -431,8 +450,7 @@ for N in range(4,N_max):
 
         # test the WCS object against the image
         t_test = time.time()
-        image_FOV = 1
-        pixel_threshold = 5
+
         number_of_matches,normal,cat_test_xy = test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV=image_FOV, w=w, threshold=pixel_threshold, img_quad_xy=img_stars)
         time_to_test_WCS = time.time() - t_test
         # adding these times to the diagnoistics
