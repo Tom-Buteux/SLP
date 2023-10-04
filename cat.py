@@ -34,14 +34,31 @@ def cat2codes(RA_lims, DE_lims, N):
     # concatenating dataframes
     cat_data = pd.concat([northern_df,southern_df],ignore_index=True)
     """
-    cat_data = fits.open('asu-4.fit', ignore_missing_simple=True)
-    cat_data = pd.DataFrame(cat_data[1].data)
-    print(cat_data.columns)
 
+    # loading in gaia data
+    gaia0_36 = fits.open('0-36-result.fits', ignore_missing_simple=True, ignore_missing_end=True)
+    gaia0_36 = pd.DataFrame(gaia0_36[1].data)
+    gaia36_72 = fits.open('36-72-result.fits', ignore_missing_simple=True, ignore_missing_end=True)
+    gaia36_72 = pd.DataFrame(gaia36_72[1].data)
+    gaia72_90 = fits.open('72-90-result.fits', ignore_missing_simple=True, ignore_missing_end=True)
+    gaia72_90 = pd.DataFrame(gaia72_90[1].data)
+    gaia90_108 = fits.open('90-108-result.fits', ignore_missing_simple=True, ignore_missing_end=True)
+    gaia90_108 = pd.DataFrame(gaia90_108[1].data)
+    gaia108_144 = fits.open('108-144-result.fits', ignore_missing_simple=True, ignore_missing_end=True)
+    gaia108_144 = pd.DataFrame(gaia108_144[1].data)
+    gaia144_180 = fits.open('144-180-result.fits', ignore_missing_simple=True, ignore_missing_end=True)
+    gaia144_180 = pd.DataFrame(gaia144_180[1].data)
+
+    # concatenating dataframes
+    cat_data = pd.concat([gaia0_36, gaia36_72, gaia72_90, gaia90_108, gaia108_144, gaia144_180], ignore_index=True)
     # resetting index
     cat_data = cat_data.reset_index(drop=True)
     cat_data = cat_data.copy()
-    cat_data = cat_data.rename(columns={'R1mag':'VTmag'})
+    # renaming columns
+    cat_data = cat_data.rename(columns={'ra':'_RAJ2000', 'dec':'_DEJ2000', 'phot_g_mean_mag':'VTmag'})
+
+    print(cat_data.columns)
+    
 
     # create a list of healpix pixels for each coordinate in cat_data
     """
@@ -49,8 +66,7 @@ def cat2codes(RA_lims, DE_lims, N):
     """
     cat_data['healpix'] = healpy.ang2pix(128, cat_data['_RAJ2000'], cat_data['_DEJ2000'], nest=True, lonlat=True)
 
-    # dropping the recno column
-    #cat_data = cat_data.drop('recno', axis=1)
+
 
     cat_data = cat_data.copy()
     
@@ -215,7 +231,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
                 inp = cat_data.loc[quad, ['x', 'y', 'z']].values
 
-                A,B,C,D,scale = utils.findABCD(inp)
+                [A,B,C,D],scale = utils.findABCD(inp)
                 
 
                 if (scale < Dmin) or (scale > Dmax):
@@ -326,7 +342,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
 
 
 # running code
-cat2codes([0,360],[0,90],7)
+cat2codes([9,14],[9,14],7)
 #cat2codes([70,90],[70,90],7)
 #cat2codes([36,39],[55,57],10)
 #cat2codes([9,14],[9,14],5)
