@@ -139,7 +139,7 @@ def imgSetUp(file):
     img_data['count'] = 0
     img_tree = cKDTree(img_data[['x', 'y']])
     # resetting the index
-    img_data = img_data.reset_index(drop=True)
+    img_data = img_data.reset_index(drop=True)#
 
     return img_data, image_size, img_tree, image, target, initial_image
 
