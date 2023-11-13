@@ -145,6 +145,7 @@ def cat2codes(RA_lims, DE_lims, N):
     
     #print('ignoring saves when testing\nre-enable saves in cat.py when changes are complete')
     print(cat_data)
+
     # plotting the stars
     fig = plt.figure(figsize=(10,10))
     plt.scatter(cat_data['RA'], cat_data['DE'], s=30000/(10**(cat_data['VTmag']/2.5))*2,color='black')
@@ -282,6 +283,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
                 new_coordinates = [[np.dot(point, u), np.dot(point, v)] for point in projected_quad] 
 
                 # plot each polygon of new coordinates
+                """
                 fig, ax = plt.subplots(1, 2, figsize=(24, 12))
                 pts = plots.order_points(new_coordinates)
                 poly = Polygon(pts, closed=True, fill=False, color='r', linewidth=2)
@@ -302,6 +304,7 @@ def run_pass(cat_data, tree, Dmax, Dmin, quads, hashcodes, N=7):
                 plt.show(block=False)
                 plt.waitforbuttonpress()
                 plt.close()
+                """
                 
                     
 
