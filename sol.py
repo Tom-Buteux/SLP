@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(description="Plate Solving Software")
 
 # Define arguments
 parser.add_argument("-n", "--image_number", type=int, help="The image number for the file you want to access", required=True)
-parser.add_argument("-f", "--fov", type=float, help="Field of view of the image", required=True)
+parser.add_argument("-f", "--fov", type=float, help="Field of view of the image (degrees)", required=True)
 parser.add_argument("-p", "--pixel_threshold", type=float, help="Pixel threshold", required=True)
 parser.add_argument("-m", "--match_tolerance", type=float, help="Match tolerance", required=True)
 
