@@ -145,7 +145,7 @@ def cat2codes(RA_lims, DE_lims, N):
     
     #print('ignoring saves when testing\nre-enable saves in cat.py when changes are complete')
     print(cat_data)
-
+    
     # plotting the stars
     fig = plt.figure(figsize=(10,10))
     plt.scatter(cat_data['RA'], cat_data['DE'], s=30000/(10**(cat_data['VTmag']/2.5))*2,color='black')
@@ -165,6 +165,8 @@ def cat2codes(RA_lims, DE_lims, N):
 
 
     plt.show()
+    
+
 
     
     # save quads and hashcodes as lists

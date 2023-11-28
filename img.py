@@ -95,11 +95,12 @@ def imgSetUp(file):
     ax[0][1].imshow(median_subtracted, cmap='gray')
     ax[0][1].set_title('Median Subtracted Image')
     ax[1][0].imshow(image, cmap='gray')
-    ax[1][0].set_title('Thresholded Image')
+    ax[1][0].set_title('Thresholded Image + Gaussian Blur')
     ax[1][1].imshow(image_median, cmap='gray')
     ax[1][1].set_title('Median Image')
     plt.show()
     """
+    
     
 
 
@@ -212,15 +213,5 @@ def generateQuads(N, img_data, image_size,img_quads, img_codes, image):
 
     return img_quads, img_codes
 
-"""
-img_data, image_size, img_tree, image = imgSetUp('test_sets/60arcmin9.fits')
-img_quads = []
-img_codes = []
-N_max = np.min([30, len(img_data)])
-w = []
-found = False
-for N in range(4,N_max):
-    img_quads, img_codes = generateQuads(N, img_data, image_size, img_quads, img_codes, image)
-    img_quads = []
-"""
+
 

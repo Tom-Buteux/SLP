@@ -272,6 +272,7 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold, im
     ind2 = img_tree.query_ball_point(cat_test_xy, r = threshold) # ind2 is the iloc indicies of the stars in img_data that are within threshold of the cat_quad
     # find the number of non-empty lists
     verified_matches = np.count_nonzero(ind2)
+    
     """
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
     ax[0].imshow(image, cmap='gray')
@@ -287,6 +288,7 @@ def test_WCS(cat_quad, cat_data, cat_tree_cartesian, image_FOV, w, threshold, im
     ax[1].set_ylabel('v')
     plt.show()
     """
+    
 
     return verified_matches, normal_vector, cat_test_xy
 
@@ -339,17 +341,20 @@ rows_list = [
     {'Name': 'Convert to WCS', 'Value': 0, 'Times Run': 0},
     {'Name': 'Test WCS', 'Value': 0, 'Times Run': 0},
     {'Name': 'Calculate Results', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Total Time', 'Value': 0, 'Times Run': 0},
-    {'Name': 'N', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Found', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Image Name', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Image_FOV', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Pixel Threshold', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Match Tolerance', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Target RA', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Target DE', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Error RA', 'Value': 0, 'Times Run': 0},
-    {'Name': 'Error DE', 'Value': 0, 'Times Run': 0},
+    {'Name': 'Total Time', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'N', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Found', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Image Name', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Image_FOV', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Pixel Threshold', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Match Tolerance', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Target RA', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Target DE', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Error RA', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Error DE', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Catalogue RA bounds', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Catalogue DE bounds', 'Value': 0, 'Times Run': np.nan},
+    {'Name': 'Device Name', 'Value': 0, 'Times Run': np.nan},
 
 ]
 
@@ -552,6 +557,8 @@ if w != None:
     ax[2].set_aspect('equal', 'box')
     ax[2].set_xlim(target[0] + 2, target[0] - 2)
     ax[2].set_ylim(target[1] - 2, target[1] + 2)
+    ax[2].set_xlabel('RA')
+    ax[2].set_ylabel('DE')
 
 
 error_RA = np.abs(target[0] - centre[0])
@@ -566,6 +573,18 @@ ax[2].add_collection(q)
 
 ax[2].set_title('Image with WCS')
 plt.show()
+
+# additional diagnostics
+import socket
+device = socket.gethostname()
+
+RA_Min = np.round(np.min(cat_data['RA']),0)
+RA_Max = np.round(np.max(cat_data['RA']),0)
+DE_Min = np.round(np.min(cat_data['DE']),0)
+DE_Max = np.round(np.max(cat_data['DE']),0)
+
+RA_bounds = str(RA_Min) + "-" + str(RA_Max)
+DE_bounds = str(DE_Min) + "-" + str(DE_Max)
 
 # add the total time taken to the diagnostics
 diagnostics.loc[diagnostics.index == 'Total Time', 'Value'] += t1
@@ -583,6 +602,13 @@ diagnostics.loc[diagnostics.index == 'Target RA', 'Value'] = target[0]
 diagnostics.loc[diagnostics.index == 'Target DE', 'Value'] = target[1]
 diagnostics.loc[diagnostics.index == 'Error RA', 'Value'] = error_RA
 diagnostics.loc[diagnostics.index == 'Error DE', 'Value'] = error_DE
+diagnostics.loc[diagnostics.index == 'Catalogue RA bounds', 'Value'] = RA_bounds
+diagnostics.loc[diagnostics.index == 'Catalogue DE bounds', 'Value'] = DE_bounds
+diagnostics.loc[diagnostics.index == 'Device Name', 'Value'] = device
+
+
+RA_Min = np.round(np.min(cat_data['RA']),0)
+RA_Max = np.round(np.max(cat_data['RA']),0)
 
 
 
